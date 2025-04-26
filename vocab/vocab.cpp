@@ -3,23 +3,26 @@
 #include <vector>
 
 #include "ASCII.h"
+#include "..\global.h"
 #include "saveDecodeCommon.h"
 using namespace std;
 
-const int LOOPS = 100000;
+map<int, pair<int, int>> RulesFromTraining(string filename)
+{
 
-map<int, pair<int, int>> RulesFromTraining(string filename){
-    
     vector<int> asciiValues = InitASCII();
 
     vector<int> asciiText = FileToASCII(filename);
 
     map<int, pair<int, int>> mergeRules;
 
-    for (int i = 0; i < LOOPS; ++i)
+    int i = 0;
+    while ((i < vocabLoops) && (mergeRules.size() < maxVocabSize))
     {
+        i++;
+
         pair<int, int> mostCommonPair = FindMostCommon(asciiText);
-        
+
         if (mostCommonPair.first == 0 && mostCommonPair.second == 0)
         {
             break;
@@ -53,60 +56,63 @@ map<int, pair<int, int>> RulesFromTraining(string filename){
     return mergeRules;
 }
 
-void DecodeID(int id, const map<int, pair<int, int>>& mergeRules) {
-    if (id < 256) {
+void Decode(int id, const map<int, pair<int, int>> &mergeRules)
+{
+    if (id < 256)
+    {
         cout << static_cast<char>(id);
-    } else {
+    }
+    else
+    {
         auto it = mergeRules.find(id);
-        if (it != mergeRules.end()) {
-            DecodeID(it->second.first, mergeRules);
-            DecodeID(it->second.second, mergeRules);
-        } else {
+        if (it != mergeRules.end())
+        {
+            Decode(it->second.first, mergeRules);
+            Decode(it->second.second, mergeRules);
+        }
+        else
+        {
             cerr << "Unknown ID during decoding: " << id << endl;
         }
     }
 }
 
-map<int, pair<int, int>> RulesFromFile(string filename){
-    int highestID = 0;
+map<int, pair<int, int>> RulesFromFile(string filename)
+{
     map<int, pair<int, int>> mergeRules;
     ifstream file(filename);
-    
-    if (!file.is_open()) {
+
+    if (!file.is_open())
+    {
         cerr << "Error opening file for reading: " << filename << endl;
         return mergeRules;
     }
 
     int id, first, second;
-    while (file >> id >> first >> second) {
+    while (file >> id >> first >> second)
+    {
         mergeRules[id] = {first, second};
-        if (id > highestID) {
-            highestID = id;
-        }
-        if (first > highestID) {
-            highestID = first;
-        }
-        if (second > highestID) {
-            highestID = second;
-        }
+        file.close();
+        return mergeRules;
     }
-
-    cout << "Highest ID found: " << highestID << endl;
-    file.close();
-    return mergeRules;
 }
 
-vector<int> Encode(string text, const map<int, pair<int, int>>& mergeRules) {
+vector<int> Encode(string text, const map<int, pair<int, int>> &mergeRules)
+{
     vector<int> encodedText;
-    for (char c : text) {
+    for (char c : text)
+    {
         encodedText.push_back(static_cast<unsigned char>(c));
     }
 
-    for (const auto& rule : mergeRules) {
+    for (const auto &rule : mergeRules)
+    {
         int id = rule.first;
-        const auto& pair = rule.second;
-        for (size_t i = 0; i < encodedText.size() - 1; ++i) {
-            if (encodedText[i] == pair.first && encodedText[i + 1] == pair.second) {
+        const auto &pair = rule.second;
+        for (size_t i = 0; i < encodedText.size() - 1; ++i)
+        {
+            if (encodedText[i] == pair.first && encodedText[i + 1] == pair.second)
+            {
                 encodedText[i] = id;
                 encodedText.erase(encodedText.begin() + i + 1);
             }
