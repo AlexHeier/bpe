@@ -14,4 +14,6 @@ map<int, pair<int, int>> RulesFromFile(string);
 
 void DecodeID(int id, const map<int, pair<int, int>>& mergeRules);
 
+vector<int> Encode(string, const map<int, pair<int, int>>&);
+
 #endif

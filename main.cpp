@@ -7,6 +7,7 @@
 using namespace std;
 
 #include "vocab/vocab.h"
+#include "training/training.h"
 
 int main(int argc, char* argv[]) {
     map<int, pair<int, int>> mergeRules;
@@ -32,13 +33,10 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    for (int i = 0; i < 256; ++i) {
-        cout << i << " => " << static_cast<char>(i) << "\n";
-    }
+    float loss = Training(mergeRules, "training_data");
+    cout << "Training loss: " << loss << endl;
 
-    for (auto& [id, pairVal] : mergeRules) {
-        cout << id << " => (" << pairVal.first << ", " << pairVal.second << ")\n";
-    }
+    SaveVectors("vectors.txt");
 
     return 0;
 }

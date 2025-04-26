@@ -68,6 +68,7 @@ void DecodeID(int id, const map<int, pair<int, int>>& mergeRules) {
 }
 
 map<int, pair<int, int>> RulesFromFile(string filename){
+    int highestID = 0;
     map<int, pair<int, int>> mergeRules;
     ifstream file(filename);
     
@@ -79,8 +80,38 @@ map<int, pair<int, int>> RulesFromFile(string filename){
     int id, first, second;
     while (file >> id >> first >> second) {
         mergeRules[id] = {first, second};
+        if (id > highestID) {
+            highestID = id;
+        }
+        if (first > highestID) {
+            highestID = first;
+        }
+        if (second > highestID) {
+            highestID = second;
+        }
     }
 
+    cout << "Highest ID found: " << highestID << endl;
     file.close();
     return mergeRules;
+}
+
+vector<int> Encode(string text, const map<int, pair<int, int>>& mergeRules) {
+    vector<int> encodedText;
+    for (char c : text) {
+        encodedText.push_back(static_cast<unsigned char>(c));
+    }
+
+    for (const auto& rule : mergeRules) {
+        int id = rule.first;
+        const auto& pair = rule.second;
+        for (size_t i = 0; i < encodedText.size() - 1; ++i) {
+            if (encodedText[i] == pair.first && encodedText[i + 1] == pair.second) {
+                encodedText[i] = id;
+                encodedText.erase(encodedText.begin() + i + 1);
+            }
+        }
+    }
+
+    return encodedText;
 }

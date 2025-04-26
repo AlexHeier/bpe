@@ -3,3 +3,7 @@ test.txt
 my_program.exe
 
 .vscode/
+
+training_data/
+
+vectors.txt
