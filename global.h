@@ -7,20 +7,20 @@ using namespace std;
 
 inline map<int, pair<int, int>> MERGERULES;
 
-inline int maxVocabSize = 10000;
+inline int maxVocabSize;
 
-inline int vocabLoops = 10000;
+inline int vocabLoops;
 
-inline int vectorSize = 2000;
+inline int vectorSize;
 
-inline int epochs = 10;
+inline int epochs;
 
-inline int negativeSamples = 5;
+inline int negativeSamples;
 
-inline int windowSize = 10;
+inline int windowSize;
 
-inline float learningRate = 0.1f;
+inline float learningRate;
 
-inline int threads = 16;
+inline int threads;
 
 #endif
