@@ -63,15 +63,17 @@ bool parseArguments(int argc, char *argv[])
         }
         else if (arg == "--help")
         {
+            cout << endl;
             cout << "-threads <number> : Set the number of threads to use (default: 1)" << endl;
             cout << "-vocabsize <number> : Set the maximum vocabulary size (default: 10000)" << endl;
             cout << "-vectorSize <number> : Set the size of the vectors (default: 2000)" << endl;
             cout << "-epochs <number> : Set the number of epochs (default: 10)" << endl;
             cout << "-window <number> : Set the window size (default: 10)" << endl;
-            cout << "-lr <number> : Set the learning rate (default: 0.01)" << endl;
+            cout << "-lr <float> : Set the learning rate (default: 0.01)" << endl;
             cout << "-vtrain <file> : Load rules from training data" << endl;
             cout << "-vfile <file> : Load rules from a file" << endl;
             cout << "--help : Show this help message" << endl;
+            cout << endl;
         }
     }
     return rules;
