@@ -5,7 +5,7 @@ using namespace std;
 
 inline int maxVocabSize = 10000;
 
-inline int vocabLoops = 1000;
+inline int vocabLoops = 10000;
 
 inline int vectorSize = 100;
 

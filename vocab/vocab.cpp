@@ -92,10 +92,12 @@ map<int, pair<int, int>> RulesFromFile(string filename)
     while (file >> id >> first >> second)
     {
         mergeRules[id] = {first, second};
-        file.close();
-        return mergeRules;
     }
+
+    file.close();
+    return mergeRules;
 }
+
 
 vector<int> Encode(string text, const map<int, pair<int, int>> &mergeRules)
 {

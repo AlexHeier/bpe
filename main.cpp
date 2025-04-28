@@ -33,10 +33,10 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    float loss = Training(mergeRules, "training_data");
-    cout << "Training loss: " << loss << endl;
+    //float loss = Training(mergeRules, "training_data");
+    //cout << "Training loss: " << loss << endl;
 
-    SaveVectors("vectors.txt");
+    //SaveVectors("vectors.txt");
 
     return 0;
 }
