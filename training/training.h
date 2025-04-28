@@ -7,7 +7,7 @@
 
 using namespace std;
 
-float Training(map<int, pair<int, int>>, string);
+map<int, vector<float>> Training(string);
 
 void SaveVectors(const string&);
 

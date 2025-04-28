@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <string>
 #include <fstream>
+#include <thread>
+#include <mutex>
 
 #include "..\global.h"
 #include "..\vocab\vocab.h"
@@ -14,55 +16,86 @@ using namespace std;
 
 namespace fs = std::filesystem;
 
-vector<float> createVector() {
-    vector<float> vec;
+vector<float> createVector()
+{
     random_device rd;
     mt19937 gen(rd());
+    vector<float> vec;
     uniform_real_distribution dis(0.0, 1.0);
 
-    for (int i = 0; i < vectorSize; ++i) {
-        vec.push_back(dis(gen));
+    vec.resize(vectorSize);
+
+    for (int i = 0; i < vectorSize; ++i)
+    {
+        vec[i] = dis(gen);
     }
     return vec;
 }
 
-map<int, vector<float>> GenerateVectors(map<int, pair<int, int>> mergeRules){
+map<int, vector<float>> GenerateVectors()
+{
     map<int, vector<float>> vectorMap;
 
-    for (int i = 0; i < 256; ++i) {
+    cout << "Generating base vector map..." << endl;
+    cout.flush();
+    for (int i = 0; i < 256; ++i)
+    {
         vectorMap[i] = createVector();
     }
+    cout << "Base vector map generated." << endl;
 
-    for (int i = 0; i < mergeRules.size(); ++i) {
-        vectorMap[i] = createVector();
+    int count = MERGERULES.size();
+
+    cout << "Number of merge rules: " << count << endl;
+
+    for (int key = 256; key < 256 + count; ++key)
+    {
+        vectorMap[key] = createVector();
     }
+    cout << "Additional vectors generated." << endl;
 
     return vectorMap;
 }
 
-string readFolder(const string& folderPath) {
-    stringstream result;
+vector<int> TextToIDs(const string &folderPath)
+{
+    cout << "Generating IDs from text files..." << endl;
+    vector<thread> threads;
+    mutex resultMutex;
+    vector<int> allIds;
 
-    for (const auto& entry : fs::directory_iterator(folderPath)) {
-        if (entry.is_regular_file()) {
-            ifstream file(entry.path());
-            if (file) {
-                result << file.rdbuf(); // Read the whole file
-            }
+    cout << "Reading files from: " << folderPath << endl;
+    cout.flush();
+    for (const auto &entry : fs::directory_iterator(folderPath))
+    {
+        if (entry.is_regular_file())
+        {
+            threads.emplace_back([&, path = entry.path()]()
+                                 {
+                cout << "Reading file: " << path << endl;
+
+                ifstream file(path);
+                if (file) {
+                    stringstream buffer;
+                    buffer << file.rdbuf();
+                    string content = buffer.str();
+                    vector<int> ids = Encode(content);
+
+                    lock_guard<mutex> lock(resultMutex);
+                    allIds.insert(allIds.end(), ids.begin(), ids.end());
+                } });
         }
     }
 
-    return result.str();
-}
-
-vector<int> TextToIDs(const string& folderPath, const map<int, pair<int, int>>& mergeRules) {
-    string text = readFolder(folderPath);
-    vector<int> ids = Encode(text, mergeRules);
-
-    if (ids.empty()) {
-        cerr << "Error: No IDs generated from the text." << endl;
-        return vector<int>();
+    for (auto &t : threads)
+    {
+        t.join();
     }
 
-    return ids;
+    if (allIds.empty())
+    {
+        cerr << "Error: No IDs generated from the files." << endl;
+    }
+
+    return allIds;
 }

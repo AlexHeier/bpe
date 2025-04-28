@@ -79,45 +79,63 @@ void Decode(int id, const map<int, pair<int, int>> &mergeRules)
 
 map<int, pair<int, int>> RulesFromFile(string filename)
 {
-    map<int, pair<int, int>> mergeRules;
     ifstream file(filename);
 
     if (!file.is_open())
     {
         cerr << "Error opening file for reading: " << filename << endl;
-        return mergeRules;
+        return MERGERULES;
     }
 
     int id, first, second;
     while (file >> id >> first >> second)
     {
-        mergeRules[id] = {first, second};
-        file.close();
-        return mergeRules;
+        MERGERULES[id] = {first, second};
     }
+
+    file.close();
+    cout << "Merge rule count: " << MERGERULES.size() << endl;
+    return MERGERULES;
 }
 
-vector<int> Encode(string text, const map<int, pair<int, int>> &mergeRules)
+vector<int> Encode(string text)
 {
+    cout << "Encoding text..." << endl;
+    map<pair<int, int>, int> pairToId;
+    for (const auto &rule : MERGERULES)
+    {
+        pairToId[make_pair(rule.second.first, rule.second.second)] = rule.first;
+    }
+    cout << "Pair to ID map size: " << pairToId.size() << endl;
+
+    // Initial encoding: each char -> int
     vector<int> encodedText;
     for (char c : text)
     {
         encodedText.push_back(static_cast<unsigned char>(c));
     }
+    cout << "Initial encoding size: " << encodedText.size() << endl;
 
-    for (const auto &rule : mergeRules)
+    // Perform the merges
+    vector<int> result;
+    size_t i = 0;
+    while (i < encodedText.size())
     {
-        int id = rule.first;
-        const auto &pair = rule.second;
-        for (size_t i = 0; i < encodedText.size() - 1; ++i)
+        if (i + 1 < encodedText.size())
         {
-            if (encodedText[i] == pair.first && encodedText[i + 1] == pair.second)
+            auto it = pairToId.find({encodedText[i], encodedText[i + 1]});
+            if (it != pairToId.end())
             {
-                encodedText[i] = id;
-                encodedText.erase(encodedText.begin() + i + 1);
+                // If a merge exists, push merged id and skip next
+                result.push_back(it->second);
+                i += 2;
+                continue;
             }
         }
+        // Otherwise just push current
+        result.push_back(encodedText[i]);
+        i++;
     }
 
-    return encodedText;
+    return result;
 }

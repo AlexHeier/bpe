@@ -6,8 +6,8 @@
 
 using namespace std;
 
-map<int, vector<float>> GenerateVectors(map<int, pair<int, int>>);
+map<int, vector<float>> GenerateVectors();
 
-vector<int> TextToIDs(const string&, const map<int, pair<int, int>>&);
+vector<int> TextToIDs(const string&);
 
 #endif

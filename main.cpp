@@ -8,9 +8,10 @@ using namespace std;
 
 #include "vocab/vocab.h"
 #include "training/training.h"
+#include "global.h"
 
 int main(int argc, char* argv[]) {
-    map<int, pair<int, int>> mergeRules;
+
     if (argc < 2) {
         cout << "Too Few arguments. Arg1: text, file or database" << endl << "Arg2: file name" << endl;
     }
@@ -19,11 +20,11 @@ int main(int argc, char* argv[]) {
 
     if (format == "training") {
         string filename = argv[2];
-        mergeRules = RulesFromTraining(filename);
+        RulesFromTraining(filename);
 
     } else if (format == "file") {
         string filename = argv[2];
-        mergeRules = RulesFromFile(filename);
+        RulesFromFile(filename);
 
     } else if (format == "database") {
         // database
@@ -33,10 +34,9 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    float loss = Training(mergeRules, "training_data");
-    cout << "Training loss: " << loss << endl;
+    string fodlerpath = "./training_data/";
 
-    SaveVectors("vectors.txt");
+    Training(fodlerpath);
 
     return 0;
 }
