@@ -1,6 +1,7 @@
+
 test.txt
 
-my_program.exe
+*.exe
 
 .vscode/
 
