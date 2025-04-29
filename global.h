@@ -23,4 +23,8 @@ inline float learningRate;
 
 inline int threads;
 
+inline int documentCount;
+
+inline int repeatCount;
+
 #endif

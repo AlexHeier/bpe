@@ -23,6 +23,10 @@ bool parseArguments(int argc, char *argv[])
     windowSize = 10;
     learningRate = 0.01f;
     threads = 4;
+    documentCount = 10;
+    repeatCount = 1;
+
+    cout << "---------------------------------------------------------------------------------------\n" << endl;
 
     for (int i = 1; i < argc; ++i)
     {
@@ -53,6 +57,21 @@ bool parseArguments(int argc, char *argv[])
             windowSize = stoi(argv[++i]);
             cout << "Window size: " << windowSize << endl;
         }
+        else if (arg == "-negative" && i + 1 < argc)
+        {
+            negativeSamples = stoi(argv[++i]);
+            cout << "Negative samples: " << negativeSamples << endl;
+        }
+        else if (arg == "-documentCount" && i + 1 < argc)
+        {
+            documentCount = stoi(argv[++i]);
+            cout << "Document count: " << documentCount << endl;
+        }
+        else if (arg == "-repeat" && i + 1 < argc)
+        {
+            repeatCount = stoi(argv[++i]);
+            cout << "Repeat count: " << repeatCount << endl;
+        }
         else if (arg == "-lr" && i + 1 < argc)
         {
             learningRate = clamp(stof(argv[++i]), 1e-5f, 0.5f);
@@ -80,6 +99,9 @@ bool parseArguments(int argc, char *argv[])
             cout << "-vectorSize <number> : Set the size of the vectors (default: 2000)" << endl;
             cout << "-epochs <number> : Set the number of epochs (default: 10)" << endl;
             cout << "-window <number> : Set the window size (default: 10)" << endl;
+            cout << "-repeat <number> : Set the number of repeat times (default: 1)" << endl;
+            cout << "-negative <number> : Set the number of negative samples (default: 5)" << endl;
+            cout << "-documentCount <number> : Set the number of documents to process (default: 10)" << endl;
             cout << "-lr <float> : Set the start learning rate (default: 0.01). Range 0.00001 - 0.5" << endl;
             cout << "-vtrain <file> : Load rules from training data" << endl;
             cout << "-vfile <file> : Load rules from a file" << endl;
@@ -87,6 +109,9 @@ bool parseArguments(int argc, char *argv[])
             cout << endl;
         }
     }
+
+    cout << "\n---------------------------------------------------------------------------------------\n" << endl;
+
     return rules;
 }
 

@@ -57,36 +57,38 @@ map<int, vector<float>> GenerateVectors()
     return vectorMap;
 }
 
-vector<int> TextToIDs(const string &folderPath)
+vector<int> TextToIDs(const vector<string> &fileNames)
 {
-    cout << "Generating IDs from text files..." << endl;
+    vector<int> allIds;
     vector<thread> threads;
     mutex resultMutex;
-    vector<int> allIds;
+    int errors = 0;
+    mutex err;
 
-    cout << "Reading files from: " << folderPath << endl;
-    cout.flush();
-    for (const auto &entry : fs::directory_iterator(folderPath))
+    for (const auto &fileName : fileNames)
     {
-        if (entry.is_regular_file())
-        {
-            threads.emplace_back([&, path = entry.path()]()
-                                 {
-                cout << "Reading file: " << path << endl;
+        threads.emplace_back([&, path = fileName]() {
 
-                ifstream file(path);
-                if (file) {
-                    stringstream buffer;
-                    buffer << file.rdbuf();
-                    string content = buffer.str();
-                    vector<int> ids = Encode(content);
+            ifstream file(path);
+            if (file)
+            {
+                stringstream buffer;
+                buffer << file.rdbuf();
+                string content = buffer.str();
+                vector<int> ids = Encode(content);
 
-                    lock_guard<mutex> lock(resultMutex);
-                    allIds.insert(allIds.end(), ids.begin(), ids.end());
-                } });
-        }
+                lock_guard<mutex> lock(resultMutex); // Ensure thread safety when modifying shared resource
+                allIds.insert(allIds.end(), ids.begin(), ids.end());
+            }
+            else
+            {
+                lock_guard<mutex> lock(err);
+                errors++;
+            }
+        });
     }
 
+    // Wait for all threads to finish
     for (auto &t : threads)
     {
         t.join();
@@ -97,5 +99,9 @@ vector<int> TextToIDs(const string &folderPath)
         cerr << "Error: No IDs generated from the files." << endl;
     }
 
+    cout << "Read " << (fileNames.size() - errors) << " files out of " << fileNames.size() << endl;
+
+
     return allIds;
 }
+

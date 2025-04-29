@@ -1,4 +1,5 @@
 #include <iostream>
+#include <filesystem>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -8,12 +9,14 @@
 #include <set>
 #include <tuple>
 #include <algorithm>
+#include <cstdlib>
 
 #include "..\global.h"
 #include "..\vocab\vocab.h"
 #include "..\training\generate.h"
 
 using namespace std;
+namespace fs = std::filesystem;
 
 map<int, vector<float>> vectorMap;
 
@@ -32,7 +35,8 @@ float sigmod(float x)
     return 1.0f / (1.0f + exp(-x));
 }
 
-vector<float> getVector(int id, map<int, vector<float>> &local){
+vector<float> getVector(int id, map<int, vector<float>> &local)
+{
     auto it = local.find(id);
     if (it != local.end())
     {
@@ -44,18 +48,31 @@ vector<float> getVector(int id, map<int, vector<float>> &local){
     }
 }
 
+vector<string> GetFileNamesFromDirectory(const string &folderPath)
+{
+    vector<string> fileNames;
+    for (const auto &entry : fs::directory_iterator(folderPath))
+    {
+        if (entry.is_regular_file())
+        {
+            fileNames.push_back(entry.path().string());
+        }
+    }
+    return fileNames;
+}
 
 void AverageThreadResults(
     const vector<map<int, vector<float>>> &threadVectorMaps,
     const vector<map<int, int>> &threadWordCountMaps,
-    int vectorSize
-)
+    int vectorSize)
 {
     set<int> all_ids;
 
     // Collect all unique ids
-    for (const auto &wordCountMap : threadWordCountMaps) {
-        for (const auto &[id, count] : wordCountMap) {
+    for (const auto &wordCountMap : threadWordCountMaps)
+    {
+        for (const auto &[id, count] : wordCountMap)
+        {
             all_ids.insert(id);
         }
     }
@@ -99,7 +116,6 @@ void AverageThreadResults(
     }
 }
 
-
 tuple<vector<float>, vector<float>, float> updateVectors(vector<float> tar, vector<float> con, int label)
 {
     if (tar.size() != vectorSize || con.size() != vectorSize)
@@ -132,111 +148,121 @@ tuple<vector<float>, vector<float>, float> updateVectors(vector<float> tar, vect
     return {tar, con, loss};
 }
 
-map<int, vector<float>> Training(string folderPath)
+static vector<string> get_file_batch(const vector<string> &filenames, int start, int end)
+{
+    return vector<string>(filenames.begin() + start, filenames.begin() + end);
+}
+
+static void process_window(const vector<int> &ids, int j, int totalSize, int windowSize, int negativeSamples,
+                           map<int, vector<float>> &localVectorMap,
+                           map<int, int> &localWordCountMap,
+                           float &tloss,
+                           const map<int, vector<float>> &vectorMap)
+{
+    int windowStart = max(j - windowSize, 0);
+    int windowEnd = min(j + windowSize, totalSize);
+
+    for (int k = windowStart; k < windowEnd; ++k)
+    {
+        if (k != j)
+        {
+            auto [targetVector, contextVector, loss] = updateVectors(getVector(ids[j], localVectorMap),
+                                                                     getVector(ids[k], localVectorMap), 1);
+            localVectorMap[ids[j]] = targetVector;
+            localVectorMap[ids[k]] = contextVector;
+            tloss += loss;
+            localWordCountMap[ids[j]]++;
+            localWordCountMap[ids[k]]++;
+
+            for (int n = 0; n < negativeSamples; ++n)
+            {
+                int randomIndex = rand() % totalSize;
+                int randomWord = ids[randomIndex];
+                auto [negTarget, negContext, negLoss] = updateVectors(getVector(ids[j], localVectorMap),
+                                                                      getVector(randomWord, localVectorMap), 0);
+                localVectorMap[ids[j]] = negTarget;
+                localVectorMap[randomWord] = negContext;
+                localWordCountMap[ids[j]]++;
+                localWordCountMap[randomWord]++;
+            }
+        }
+    }
+}
+
+map<int, vector<float>> Training(const string &folderPath)
 {
     cout << "Training started..." << endl;
-
     vectorMap = GenerateVectors();
     cout << "Base vector map generated." << endl;
-
     cout << "The folderpath: " << folderPath << endl;
-    vector<int> ids = TextToIDs(folderPath);
-    cout << "Text converted to IDs." << endl;
 
-    int threadCount = threads;
-    int totalSize = ids.size();
-    int chunkSize = (totalSize + threadCount - 1) / threadCount;
-    float previousLoss = 0.0f;
+    vector<string> fileNames = GetFileNamesFromDirectory(folderPath);
+    int totalFiles = fileNames.size();
+    cout << "Number of files found: " << totalFiles << endl;
 
     for (int epoch = 0; epoch < epochs; ++epoch)
     {
-        vector<map<int, vector<float>>> threadVectorMaps(threadCount);
-        vector<map<int, int>> threadWordCountMaps(threadCount);
-        vector<thread> threadPool;
-        vector<float> threadLosses(threadCount, 0.0f);  // Store losses for each thread
+        cout << "\nEpoch " << epoch + 1 << " started..." << endl;
 
-        for (int t = 0; t < threadCount; ++t)
+        for (int batchStart = 0; batchStart < totalFiles; batchStart += documentCount)
         {
-            threadPool.emplace_back([&, t]() {
-                map<int, vector<float>> localVectorMap;
-                map<int, int> localWordCountMap;
+            int batchEnd = min(batchStart + documentCount, totalFiles);
+            vector<string> batchFiles = get_file_batch(fileNames, batchStart, batchEnd);
+            vector<int> ids = TextToIDs(batchFiles);
 
-                int startIdx = t * chunkSize;
-                int endIdx = min(startIdx + chunkSize, totalSize);
+            cout << "\nBatch processed: Files " << batchStart + 1 << " to " << batchEnd << endl;
 
-                float tloss = 0.0f;
+            int totalSize = ids.size();
+            int chunkSize = (totalSize + threads - 1) / threads;
 
-                for (int j = startIdx; j < endIdx; ++j)
-                {
-                    int windowStart = max(j - windowSize, 0);
-                    int windowEnd = min(j + windowSize, totalSize);
+            vector<map<int, vector<float>>> threadVectorMaps(threads);
+            vector<map<int, int>> threadWordCountMaps(threads);
+            vector<thread> threadPool;
+            vector<float> threadLosses(threads, 0.0f);
 
-                    for (int k = windowStart; k < windowEnd; ++k)
-                    {
-                        if (k != j)
-                        {
-                            auto [tar, con, l] = updateVectors(getVector(ids[j], localVectorMap), getVector(ids[k], localVectorMap), 1);
-                            localVectorMap[ids[j]] = tar;
-                            localVectorMap[ids[k]] = con;
-                            tloss += l;
-                            localWordCountMap[ids[j]]++;
-                            localWordCountMap[ids[k]]++;
+            for (int t = 0; t < threads; ++t)
+            {
+                threadPool.emplace_back([&, t]()
+                                        {
+                    map<int, vector<float>> localVectorMap;
+                    map<int, int> localWordCountMap;
+                    float tloss = 0.0f;
 
-                            for (int n = 0; n < negativeSamples; ++n)
-                            {
-                                int randomIndex = rand() % totalSize;
-                                int randomWord = ids[randomIndex];
-                                auto [tar, con, l] = updateVectors(getVector(ids[j], localVectorMap), getVector(ids[randomWord], localVectorMap), 0);
-                                localVectorMap[ids[j]] = tar;
-                                localVectorMap[randomWord] = con;
-                                localWordCountMap[ids[j]]++;
-                                localWordCountMap[randomWord]++;
-                            }
+                    int startIdx = t * chunkSize;
+                    int endIdx = min(startIdx + chunkSize, totalSize);
+
+                    for (int o = 0; o < repeatCount; ++o) {
+                        for (int j = startIdx; j < endIdx; ++j) {
+                            process_window(ids, j, totalSize, windowSize, negativeSamples,
+                                           localVectorMap, localWordCountMap, tloss,
+                                           vectorMap);
                         }
                     }
-                }
+                
+                    threadVectorMaps[t] = move(localVectorMap);
+                    threadWordCountMaps[t] = move(localWordCountMap);
+                    threadLosses[t] = tloss; });
+            }
 
-                threadVectorMaps[t] = localVectorMap;
-                threadWordCountMaps[t] = localWordCountMap;
-                threadLosses[t] = tloss;
-            });
+            for (auto &th : threadPool)
+            {
+                th.join();
+            }
+
+            AverageThreadResults(threadVectorMaps, threadWordCountMaps, vectorSize);
+
+            float totalLoss = 0.0f;
+            for (const float &loss : threadLosses)
+            {
+                totalLoss += loss;
+            }
+
+            cout << "Batch Loss: " << totalLoss << endl;
         }
-
-        // Wait for all threads to finish
-        for (auto &th : threadPool)
-        {
-            th.join();
-        }
-
-        // Average the vectors after threads complete
-        AverageThreadResults(threadVectorMaps, threadWordCountMaps, vectorSize);
-
-        // Calculate total loss for this epoch
-        float totalLoss = 0.0f;
-        for (const float &loss : threadLosses)
-        {
-            totalLoss += loss;
-        }
-
-        /** 
-
-        float changeLoss = (totalLoss - previousLoss) / previousLoss;
-        if (changeLoss > 0.01f) {
-            learningRate *= 1.05f;
-        } else if (changeLoss < 0.001f) {
-            learningRate *= 0.8f;
-        }
-        learningRate = clamp(learningRate, 1e-5f, 1.0f);
-        */
-
-        cout << "Epoch: " << epoch + 1 << " Total Loss: " << totalLoss <<  endl;
     }
 
     return vectorMap;
 }
-
-
-
 
 void SaveVectors(const string &filename)
 {

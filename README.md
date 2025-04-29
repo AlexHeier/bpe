@@ -1,12 +1,12 @@
 # Byte Pair Encoding
 
+Training, decoding, encoding and vector training.
 
+To get training data use the python script. Before running it remember to:
+``` powershell
+pip install datasets
+```
 
-## Psudo Code
+run the program with --help to get more information.
 
-text -> ASCII_ID
-for - Until only unique ID or Count
-    Check ASCII_ID pair count
-    Merge top pair together
-    Replace pair with new ID and store it
-
+(Readme comming later ;))

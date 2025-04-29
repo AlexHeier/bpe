@@ -8,6 +8,6 @@ using namespace std;
 
 map<int, vector<float>> GenerateVectors();
 
-vector<int> TextToIDs(const string&);
+vector<int> TextToIDs(const vector<string> &);
 
 #endif

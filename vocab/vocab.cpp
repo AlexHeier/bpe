@@ -100,13 +100,11 @@ map<int, pair<int, int>> RulesFromFile(string filename)
 
 vector<int> Encode(string text)
 {
-    cout << "Encoding text..." << endl;
     map<pair<int, int>, int> pairToId;
     for (const auto &rule : MERGERULES)
     {
         pairToId[make_pair(rule.second.first, rule.second.second)] = rule.first;
     }
-    cout << "Pair to ID map size: " << pairToId.size() << endl;
 
     // Initial encoding: each char -> int
     vector<int> encodedText;
@@ -114,7 +112,6 @@ vector<int> Encode(string text)
     {
         encodedText.push_back(static_cast<unsigned char>(c));
     }
-    cout << "Initial encoding size: " << encodedText.size() << endl;
 
     // Perform the merges
     vector<int> result;
