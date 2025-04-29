@@ -7,6 +7,7 @@
 #include <thread>
 #include <set>
 #include <tuple>
+#include <algorithm>
 
 #include "..\global.h"
 #include "..\vocab\vocab.h"
@@ -30,6 +31,19 @@ float sigmod(float x)
 {
     return 1.0f / (1.0f + exp(-x));
 }
+
+vector<float> getVector(int id, map<int, vector<float>> &local){
+    auto it = local.find(id);
+    if (it != local.end())
+    {
+        return it->second;
+    }
+    else
+    {
+        return vectorMap[id];
+    }
+}
+
 
 void AverageThreadResults(
     const vector<map<int, vector<float>>> &threadVectorMaps,
@@ -132,6 +146,7 @@ map<int, vector<float>> Training(string folderPath)
     int threadCount = threads;
     int totalSize = ids.size();
     int chunkSize = (totalSize + threadCount - 1) / threadCount;
+    float previousLoss = 0.0f;
 
     for (int epoch = 0; epoch < epochs; ++epoch)
     {
@@ -143,7 +158,7 @@ map<int, vector<float>> Training(string folderPath)
         for (int t = 0; t < threadCount; ++t)
         {
             threadPool.emplace_back([&, t]() {
-                map<int, vector<float>> localVectorMap = vectorMap;
+                map<int, vector<float>> localVectorMap;
                 map<int, int> localWordCountMap;
 
                 int startIdx = t * chunkSize;
@@ -160,7 +175,7 @@ map<int, vector<float>> Training(string folderPath)
                     {
                         if (k != j)
                         {
-                            auto [tar, con, l] = updateVectors(localVectorMap[ids[j]], localVectorMap[ids[k]], 1);
+                            auto [tar, con, l] = updateVectors(getVector(ids[j], localVectorMap), getVector(ids[k], localVectorMap), 1);
                             localVectorMap[ids[j]] = tar;
                             localVectorMap[ids[k]] = con;
                             tloss += l;
@@ -171,7 +186,7 @@ map<int, vector<float>> Training(string folderPath)
                             {
                                 int randomIndex = rand() % totalSize;
                                 int randomWord = ids[randomIndex];
-                                auto [tar, con, l] = updateVectors(localVectorMap[ids[j]], localVectorMap[randomWord], 0);
+                                auto [tar, con, l] = updateVectors(getVector(ids[j], localVectorMap), getVector(ids[randomWord], localVectorMap), 0);
                                 localVectorMap[ids[j]] = tar;
                                 localVectorMap[randomWord] = con;
                                 localWordCountMap[ids[j]]++;
@@ -203,7 +218,18 @@ map<int, vector<float>> Training(string folderPath)
             totalLoss += loss;
         }
 
-        cout << "Epoch: " << epoch + 1 << " Total Loss: " << totalLoss << endl;
+        /** 
+
+        float changeLoss = (totalLoss - previousLoss) / previousLoss;
+        if (changeLoss > 0.01f) {
+            learningRate *= 1.05f;
+        } else if (changeLoss < 0.001f) {
+            learningRate *= 0.8f;
+        }
+        learningRate = clamp(learningRate, 1e-5f, 1.0f);
+        */
+
+        cout << "Epoch: " << epoch + 1 << " Total Loss: " << totalLoss <<  endl;
     }
 
     return vectorMap;
