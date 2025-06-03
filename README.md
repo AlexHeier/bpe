@@ -10,3 +10,11 @@ pip install datasets
 run the program with --help to get more information.
 
 (Readme comming later ;))
+
+```sql
+CREATE TABLE embeddings (
+    id INT UNIQUE,
+    vector FLOAT[],
+    frequency BIGINT
+);
+```

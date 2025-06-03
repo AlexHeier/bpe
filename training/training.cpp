@@ -10,15 +10,24 @@
 #include <tuple>
 #include <algorithm>
 #include <cstdlib>
+#include <chrono>
+#include <mutex>
+#include <sstream>
 
 #include "..\global.h"
 #include "..\vocab\vocab.h"
 #include "..\training\generate.h"
 
+#include "C:\Program Files\PostgreSQL\17\include\libpq-fe.h"
+
 using namespace std;
 namespace fs = std::filesystem;
 
 map<int, vector<float>> vectorMap;
+map<int, vector<float>> updatedVectorMap;
+mutex updatedMutex;
+map<int, int> frequencyMap;
+bool trainingDone = false;
 
 int min(int a, int b)
 {
@@ -48,6 +57,87 @@ vector<float> getVector(int id, map<int, vector<float>> &local)
     }
 }
 
+void saveToDB() {
+    // Connect to database BPE as user postgres (no password)
+    const char* conninfo = "host=localhost dbname=BPE user=postgres";
+    PGconn* conn = PQconnectdb(conninfo);
+
+    if (PQstatus(conn) != CONNECTION_OK) {
+        std::cerr << "Connection failed: " << PQerrorMessage(conn);
+        PQfinish(conn);
+        return;
+    }
+
+    while (!trainingDone || !updatedVectorMap.empty()) {
+        // Start a transaction
+        PGresult* res = PQexec(conn, "BEGIN;");
+        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+            std::cerr << "BEGIN failed: " << PQerrorMessage(conn);
+            PQclear(res);
+            PQfinish(conn);
+            return;
+        }
+        PQclear(res);
+
+        // Construct the bulk insert SQL query
+        ostringstream sql;
+        sql << "INSERT INTO embeddings (id, vector, frequency) VALUES ";
+
+        updatedMutex.lock();
+        map<int, vector<float>> localVectorMap = updatedVectorMap;
+        updatedVectorMap.clear();
+        updatedMutex.unlock();
+
+        bool first = true;
+        for (const auto& [id, vec] : localVectorMap) {
+            auto freqIt = frequencyMap.find(id);
+            if (freqIt == frequencyMap.end()) continue; // skip if frequency not found
+
+            int frequency = freqIt->second;
+
+            // Create SQL-compatible array string for the vector
+            ostringstream vecStr;
+            vecStr << "ARRAY[";
+            for (int i = 0; i < vec.size(); ++i) {
+                vecStr << vec[i];
+                if (i < vec.size() - 1) vecStr << ",";
+            }
+            vecStr << "]";
+
+            // Append each value to the SQL query
+            if (!first) {
+                sql << ", ";
+            }
+            sql << "(" << id << ", " << vecStr.str() << ", " << frequency << ")";
+            first = false;
+        }
+
+        // Execute the bulk insert SQL query
+        res = PQexec(conn, sql.str().c_str());
+
+        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+            std::cerr << "Bulk insert failed: " << PQerrorMessage(conn);
+        }
+
+        PQclear(res);
+
+        // Commit the transaction
+        res = PQexec(conn, "COMMIT;");
+        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+            std::cerr << "COMMIT failed: " << PQerrorMessage(conn);
+            PQclear(res);
+            PQfinish(conn);
+            return;
+        }
+        PQclear(res);
+
+        // Sleep for 1 minute (60 seconds) before the next operation
+        std::this_thread::sleep_for(std::chrono::minutes(1));
+    }
+
+    PQfinish(conn);
+}
+
 vector<string> GetFileNamesFromDirectory(const string &folderPath)
 {
     vector<string> fileNames;
@@ -74,6 +164,7 @@ void AverageThreadResults(
         for (const auto &[id, count] : wordCountMap)
         {
             all_ids.insert(id);
+            frequencyMap[id] += count;
         }
     }
 
@@ -113,6 +204,9 @@ void AverageThreadResults(
 
         // Now update the global vectorMap directly
         vectorMap[id] = avgVector;
+        updatedMutex.lock();
+        updatedVectorMap[id] = avgVector;
+        updatedMutex.unlock();
     }
 }
 
@@ -200,6 +294,9 @@ map<int, vector<float>> Training(const string &folderPath)
     int totalFiles = fileNames.size();
     cout << "Number of files found: " << totalFiles << endl;
 
+    cout << "Starting saveing to DB..." << endl;
+    thread dbThread(saveToDB);
+
     for (int epoch = 0; epoch < epochs; ++epoch)
     {
         cout << "\nEpoch " << epoch + 1 << " started..." << endl;
@@ -260,6 +357,9 @@ map<int, vector<float>> Training(const string &folderPath)
             cout << "Batch Loss: " << totalLoss << endl;
         }
     }
+
+    trainingDone = true;
+    dbThread.join();
 
     return vectorMap;
 }
