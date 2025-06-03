@@ -9,6 +9,4 @@ using namespace std;
 
 map<int, vector<float>> Training(const string&);
 
-void SaveVectors(const string&);
-
 #endif

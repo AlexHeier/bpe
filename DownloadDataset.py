@@ -7,9 +7,9 @@ import sys
 
 
 output_dir = os.path.join(".", "training_data")
+
 if not os.path.exists(output_dir):
-    print(f"Error: The folder '{output_dir}' does not exist!")
-    sys.exit(1)
+    os.makedirs(output_dir)
 
 
 dataset = load_dataset("wikipedia", "20220301.en", split="train", trust_remote_code=True)
@@ -35,7 +35,7 @@ for i, article in enumerate(dataset):
 
     article_count += 1
 
-    if article_count % 1000 == 0:
+    if article_count % 25000 == 0:
         print(f"Saved {article_count} articles...")
 
 print(f"Finished. Total articles saved: {article_count}")

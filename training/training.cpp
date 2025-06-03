@@ -18,14 +18,11 @@
 #include "..\vocab\vocab.h"
 #include "..\training\generate.h"
 
-#include "C:\Program Files\PostgreSQL\17\include\libpq-fe.h"
-
 using namespace std;
 namespace fs = std::filesystem;
 
 map<int, vector<float>> vectorMap;
-map<int, vector<float>> updatedVectorMap;
-mutex updatedMutex;
+mutex vectorMutex;
 map<int, int> frequencyMap;
 bool trainingDone = false;
 
@@ -57,85 +54,48 @@ vector<float> getVector(int id, map<int, vector<float>> &local)
     }
 }
 
-void saveToDB() {
-    // Connect to database BPE as user postgres (no password)
-    const char* conninfo = "host=localhost dbname=BPE user=postgres";
-    PGconn* conn = PQconnectdb(conninfo);
+void saveToFile(){
+    while (true)
+    {
+        this_thread::sleep_for(chrono::minutes(5));
+        vectorMutex.lock();
+        map<int, vector<float>> local = vectorMap;
+        vectorMutex.unlock();
 
-    if (PQstatus(conn) != CONNECTION_OK) {
-        std::cerr << "Connection failed: " << PQerrorMessage(conn);
-        PQfinish(conn);
-        return;
+        ofstream out(vectorFile, ios::binary);
+
+        if (!out){
+            cout << "Failed to open " << vectorFile << " for saving. Continuing...";
+            continue;
+        }
+
+        size_t mapSize = local.size();
+        out.write(reinterpret_cast<const char*>(&mapSize), sizeof(mapSize));
+        out.write(reinterpret_cast<const char*>(&vectorSize), sizeof(vectorSize));
+
+        for (const auto& [key, vec] : local){
+            out.write(reinterpret_cast<const char*>(&key), sizeof(key));
+            out.write(reinterpret_cast<const char*>(vec.data()), vectorSize * sizeof(float));
+        }
     }
+}
 
-    while (!trainingDone || !updatedVectorMap.empty()) {
-        // Start a transaction
-        PGresult* res = PQexec(conn, "BEGIN;");
-        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-            std::cerr << "BEGIN failed: " << PQerrorMessage(conn);
-            PQclear(res);
-            PQfinish(conn);
-            return;
-        }
-        PQclear(res);
+void loadFromFile(){
+    ifstream in(vectorFile, ios::binary);
+    size_t mapSize;
 
-        // Construct the bulk insert SQL query
-        ostringstream sql;
-        sql << "INSERT INTO embeddings (id, vector, frequency) VALUES ";
+    in.read(reinterpret_cast<char*>(&mapSize), sizeof(mapSize));
+    in.read(reinterpret_cast<char*>(&vectorSize), sizeof(vectorSize));
 
-        updatedMutex.lock();
-        map<int, vector<float>> localVectorMap = updatedVectorMap;
-        updatedVectorMap.clear();
-        updatedMutex.unlock();
+    for (size_t i = 0; i < mapSize; ++i){
+        int key;
+        vector<float> vec(vectorSize);
 
-        bool first = true;
-        for (const auto& [id, vec] : localVectorMap) {
-            auto freqIt = frequencyMap.find(id);
-            if (freqIt == frequencyMap.end()) continue; // skip if frequency not found
+        in.read(reinterpret_cast<char*>(&key), sizeof(key));
+        in.read(reinterpret_cast<char*>(vec.data()), vectorSize * sizeof(float));
 
-            int frequency = freqIt->second;
-
-            // Create SQL-compatible array string for the vector
-            ostringstream vecStr;
-            vecStr << "ARRAY[";
-            for (int i = 0; i < vec.size(); ++i) {
-                vecStr << vec[i];
-                if (i < vec.size() - 1) vecStr << ",";
-            }
-            vecStr << "]";
-
-            // Append each value to the SQL query
-            if (!first) {
-                sql << ", ";
-            }
-            sql << "(" << id << ", " << vecStr.str() << ", " << frequency << ")";
-            first = false;
-        }
-
-        // Execute the bulk insert SQL query
-        res = PQexec(conn, sql.str().c_str());
-
-        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-            std::cerr << "Bulk insert failed: " << PQerrorMessage(conn);
-        }
-
-        PQclear(res);
-
-        // Commit the transaction
-        res = PQexec(conn, "COMMIT;");
-        if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-            std::cerr << "COMMIT failed: " << PQerrorMessage(conn);
-            PQclear(res);
-            PQfinish(conn);
-            return;
-        }
-        PQclear(res);
-
-        // Sleep for 1 minute (60 seconds) before the next operation
-        std::this_thread::sleep_for(std::chrono::minutes(1));
+        vectorMap[key] = move(vec); // Moves the owner ship of the memory
     }
-
-    PQfinish(conn);
 }
 
 vector<string> GetFileNamesFromDirectory(const string &folderPath)
@@ -203,10 +163,9 @@ void AverageThreadResults(
         }
 
         // Now update the global vectorMap directly
+        vectorMutex.lock();
         vectorMap[id] = avgVector;
-        updatedMutex.lock();
-        updatedVectorMap[id] = avgVector;
-        updatedMutex.unlock();
+        vectorMutex.unlock();
     }
 }
 
@@ -286,16 +245,24 @@ static void process_window(const vector<int> &ids, int j, int totalSize, int win
 map<int, vector<float>> Training(const string &folderPath)
 {
     cout << "Training started..." << endl;
-    vectorMap = GenerateVectors();
-    cout << "Base vector map generated." << endl;
-    cout << "The folderpath: " << folderPath << endl;
+    if(filesystem::exists(vectorFile)){
+        cout << "Loading vector map from file" << endl;
+        loadFromFile();
+        cout << "Vector map loaded" << endl;
 
+    } else {
+        cout << vectorFile + " doesnt exsist. Generating vector map" << endl;
+        vectorMap = GenerateVectors();
+        cout << "Base vector map generated" << endl;
+    }
+    
+    cout << "The folderpath: " << folderPath << endl;
     vector<string> fileNames = GetFileNamesFromDirectory(folderPath);
     int totalFiles = fileNames.size();
     cout << "Number of files found: " << totalFiles << endl;
 
     cout << "Starting saveing to DB..." << endl;
-    thread dbThread(saveToDB);
+    thread dbThread(saveToFile);
 
     for (int epoch = 0; epoch < epochs; ++epoch)
     {
@@ -362,26 +329,4 @@ map<int, vector<float>> Training(const string &folderPath)
     dbThread.join();
 
     return vectorMap;
-}
-
-void SaveVectors(const string &filename)
-{
-    ofstream outFile(filename, ios::binary);
-    if (!outFile)
-    {
-        cerr << "Error opening file for writing: " << filename << endl;
-        return;
-    }
-
-    for (const auto &entry : vectorMap)
-    {
-        int id = entry.first;
-        const vector<float> &vec = entry.second;
-
-        outFile.write(reinterpret_cast<const char *>(&id), sizeof(id));
-        outFile.write(reinterpret_cast<const char *>(vec.data()), vec.size() * sizeof(float));
-    }
-
-    outFile.close();
-    cout << "Vectors saved to " << filename << endl;
 }

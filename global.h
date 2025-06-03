@@ -11,7 +11,7 @@ inline int maxVocabSize;
 
 inline int vocabLoops;
 
-inline int vectorSize;
+inline size_t vectorSize;
 
 inline int epochs;
 
@@ -26,5 +26,8 @@ inline int threads;
 inline int documentCount;
 
 inline int repeatCount;
+
+
+const string vectorFile = "vectors.bin";
 
 #endif

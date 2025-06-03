@@ -18,3 +18,14 @@ CREATE TABLE embeddings (
     frequency BIGINT
 );
 ```
+
+## Run
+
+### Training data
+To get training data use the python script. Before running it remember to:
+``` powershell
+pip install datasets
+```
+
+### Compile
+ g++ -o my_program (Get-ChildItem -Recurse -Filter *.cpp | ForEach-Object { $_.FullName })

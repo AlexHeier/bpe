@@ -14,7 +14,7 @@ using namespace std;
 
 bool parseArguments(int argc, char *argv[])
 {
-    bool rules = false;
+    bool newRules = false;
 
     maxVocabSize = 10000;
     vocabLoops = 10000;
@@ -82,14 +82,14 @@ bool parseArguments(int argc, char *argv[])
         {
             cout << "Rules from training data." << endl;
             RulesFromTraining(argv[++i]);
-            rules = true;
+            newRules = true;
             
         }
         else if (arg == "-vfile" && i + 1 < argc)
         {
             cout << "Rules from file." << endl;
             RulesFromFile(argv[++i]);
-            rules = true;
+            newRules = true;
             
         }
         else if (arg == "--help")
@@ -113,7 +113,7 @@ bool parseArguments(int argc, char *argv[])
 
     cout << "\n---------------------------------------------------------------------------------------\n" << endl;
 
-    return rules;
+    return newRules;
 }
 
 int main(int argc, char *argv[])
@@ -129,7 +129,6 @@ int main(int argc, char *argv[])
 
     Training(fodlerpath);
 
-    SaveVectors("vectors.bin");
 
     return 0;
 }
