@@ -11,6 +11,7 @@ using namespace std;
 #include "vocab/vocab.h"
 #include "training/training.h"
 #include "global.h"
+#include "testing/test.h"
 
 bool parseArguments(int argc, char *argv[])
 {
@@ -92,7 +93,14 @@ bool parseArguments(int argc, char *argv[])
             newRules = true;
             
         }
-        else if (arg == "--help")
+         else if (arg == "-test" && i + 4 < argc)
+        {
+            StartTest(argv[i+1], argv[i+2], argv[i+3], argv[i+4]);
+            cout << "---------------------------------------------------------------------------------------\n" << endl;
+            exit(0);
+            
+        }
+        else if (arg == "-help")
         {
             cout << endl;
             cout << "-threads <number> : Set the number of threads to use (default: 4)" << endl;
@@ -106,7 +114,8 @@ bool parseArguments(int argc, char *argv[])
             cout << "-lr <float> : Set the start learning rate (default: 0.01). Range 0.00001 - 0.5" << endl;
             cout << "-vtrain <file> : Load rules from training data" << endl;
             cout << "-vfile <file> : Load rules from a file" << endl;
-            cout << "--help : Show this help message" << endl;
+            cout << endl << "-test : runs a semantic test on the vectors.bin file. Test format is word1 - word2 + word3 ~= word4" << endl;
+            cout << endl << "-help : Show this help message" << endl;
             cout << endl;
         }
     }

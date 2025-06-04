@@ -28,4 +28,14 @@ pip install datasets
 ```
 
 ### Compile
- g++ -o my_program (Get-ChildItem -Recurse -Filter *.cpp | ForEach-Object { $_.FullName })
+Windows:
+```powershell
+g++ -o my_program (Get-ChildItem -Recurse -Filter *.cpp | ForEach-Object { $_.FullName })
+```
+
+Linux:
+```bash
+g++ -o my_program $(find . -name "*.cpp")
+```
+
+

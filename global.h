@@ -2,6 +2,8 @@
 #define GLOBAL_H
 
 #include <map>
+#include <vector>
+#include <string>
 
 using namespace std;
 
@@ -29,5 +31,7 @@ inline int repeatCount;
 
 
 const string vectorFile = "vectors.bin";
+
+map<int, vector<float>> LoadVectorsFromBinary();
 
 #endif

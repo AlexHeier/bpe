@@ -80,23 +80,6 @@ void saveToFile(){
     }
 }
 
-void loadFromFile(){
-    ifstream in(vectorFile, ios::binary);
-    size_t mapSize;
-
-    in.read(reinterpret_cast<char*>(&mapSize), sizeof(mapSize));
-    in.read(reinterpret_cast<char*>(&vectorSize), sizeof(vectorSize));
-
-    for (size_t i = 0; i < mapSize; ++i){
-        int key;
-        vector<float> vec(vectorSize);
-
-        in.read(reinterpret_cast<char*>(&key), sizeof(key));
-        in.read(reinterpret_cast<char*>(vec.data()), vectorSize * sizeof(float));
-
-        vectorMap[key] = move(vec); // Moves the owner ship of the memory
-    }
-}
 
 vector<string> GetFileNamesFromDirectory(const string &folderPath)
 {
@@ -247,7 +230,7 @@ map<int, vector<float>> Training(const string &folderPath)
     cout << "Training started..." << endl;
     if(filesystem::exists(vectorFile)){
         cout << "Loading vector map from file" << endl;
-        loadFromFile();
+        vectorMap = LoadVectorsFromBinary();
         cout << "Vector map loaded" << endl;
 
     } else {
@@ -261,12 +244,12 @@ map<int, vector<float>> Training(const string &folderPath)
     int totalFiles = fileNames.size();
     cout << "Number of files found: " << totalFiles << endl;
 
-    cout << "Starting saveing to DB..." << endl;
+    cout << "Starting saveing to file..." << endl;
     thread dbThread(saveToFile);
 
     for (int epoch = 0; epoch < epochs; ++epoch)
     {
-        cout << "\nEpoch " << epoch + 1 << " started..." << endl;
+        cout << endl << "Epoch " << epoch + 1 << " started..." << endl;
 
         for (int batchStart = 0; batchStart < totalFiles; batchStart += documentCount)
         {
@@ -274,7 +257,7 @@ map<int, vector<float>> Training(const string &folderPath)
             vector<string> batchFiles = get_file_batch(fileNames, batchStart, batchEnd);
             vector<int> ids = TextToIDs(batchFiles);
 
-            cout << "\nBatch processed: Files " << batchStart + 1 << " to " << batchEnd << endl;
+            cout << endl <<"Batch processed: Files " << batchStart + 1 << " to " << batchEnd << endl;
 
             int totalSize = ids.size();
             int chunkSize = (totalSize + threads - 1) / threads;
