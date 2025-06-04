@@ -29,6 +29,8 @@ inline int documentCount;
 
 inline int repeatCount;
 
+inline bool trainVectors;
+
 
 const string vectorFile = "vectors.bin";
 

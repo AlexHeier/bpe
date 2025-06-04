@@ -27,6 +27,7 @@ bool parseArguments(int argc, char *argv[])
     threads = 4;
     documentCount = 10;
     repeatCount = 1;
+    trainVectors = false;
 
     cout << "---------------------------------------------------------------------------------------\n" << endl;
 
@@ -100,6 +101,11 @@ bool parseArguments(int argc, char *argv[])
             exit(0);
             
         }
+        else if (arg == "-vecTrain")
+        {
+            trainVectors = true;
+            
+        }
         else if (arg == "-help")
         {
             cout << endl;
@@ -114,10 +120,12 @@ bool parseArguments(int argc, char *argv[])
             cout << "-lr <float> : Set the start learning rate (default: 0.01). Range 0.00001 - 0.5" << endl;
             cout << "-vtrain <file> : Load rules from training data" << endl;
             cout << "-vfile <file> : Load rules from a file" << endl;
+            cout << endl << "-vecTrain: Train vectors from file or vocabulary. Training data location ./training_data/" << endl;
             cout << endl << "-test : runs a semantic test on the vectors.bin file. Test format is word1 - word2 + word3 ~= word4" << endl;
             cout << endl << "-help : Show this help message" << endl;
             cout << endl;
         }
+        
     }
 
     cout << "\n---------------------------------------------------------------------------------------\n" << endl;
@@ -134,10 +142,10 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    string fodlerpath = "./training_data/";
-
-    Training(fodlerpath);
-
-
+    if (trainVectors){
+        string fodlerpath = "./training_data/";
+        Training(fodlerpath);
+    }
+    
     return 0;
 }
