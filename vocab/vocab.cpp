@@ -14,16 +14,18 @@ map<int, pair<int, int>> RulesFromTraining(string filename)
 
     vector<int> asciiText = FileToASCII(filename);
 
+    cout << "Length of vocab training text " << asciiText.size();
+
     map<int, pair<int, int>> mergeRules;
 
     int i = 0;
-    while ((i < vocabLoops) && (mergeRules.size() < maxVocabSize))
+    while (i < maxVocabSize-255)
     {
         i++;
 
         pair<int, int> mostCommonPair = FindMostCommon(asciiText);
 
-        if (mostCommonPair.first == 0 && mostCommonPair.second == 0)
+        if (mostCommonPair.first == -1 && mostCommonPair.second == -1)
         {
             break;
         }

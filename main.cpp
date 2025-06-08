@@ -17,9 +17,8 @@ bool parseArguments(int argc, char *argv[])
 {
     bool newRules = false;
 
-    maxVocabSize = 10000;
-    vocabLoops = 10000;
-    vectorSize = 2000;
+    maxVocabSize = 25000;
+    vectorSize = 2500;
     epochs = 10;
     negativeSamples = 5;
     windowSize = 10;

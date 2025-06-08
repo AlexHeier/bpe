@@ -8,7 +8,7 @@ using namespace std;
 pair<int, int> FindMostCommon(const vector<int>& input) {
     map<pair<int, int>, int> pairs;
     int maxCount = 0;
-    pair<int, int> mostCommonPair = {0, 0};
+    pair<int, int> mostCommonPair = {-1, -1};
 
     for (int i = 0; i < input.size() - 1; ++i) {
         pairs[{input[i], input[i + 1]}]++;
@@ -22,7 +22,7 @@ pair<int, int> FindMostCommon(const vector<int>& input) {
     }
 
     if (maxCount == 1) {
-        return {0, 0};
+        return {-1, -1};
     }
 
     return mostCommonPair;
@@ -43,5 +43,5 @@ void SaveMergeRules(const map<int, pair<int, int>>& mergeRules, const string& fi
     }
 
     outFile.close();
-    cout << "Merge rules saved to " << filename << endl;
+    cout << endl << "Number of merge rules: " << mergeRules.size()+255 << endl << "Merge rules saved to " << filename << endl;
 }

@@ -11,7 +11,6 @@ inline map<int, pair<int, int>> MERGERULES;
 
 inline int maxVocabSize;
 
-inline int vocabLoops;
 
 inline size_t vectorSize;
 
