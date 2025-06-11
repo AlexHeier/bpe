@@ -12,7 +12,7 @@ if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
 
-dataset = load_dataset("wikipedia", "20220301.en", split="train", trust_remote_code=True)
+dataset = load_dataset("wikipedia", "20220301.en", split="train", streaming=True, trust_remote_code=True)
 
 
 def sanitize_filename(title, max_length=100):
@@ -26,6 +26,8 @@ for i, article in enumerate(dataset):
 
     if not text:
         continue
+
+    text = f"{text}\n<|endoftext|>"
 
     filename = sanitize_filename(title)
     file_path = os.path.join(output_dir, f"{filename}_{i}.txt")
