@@ -4,6 +4,7 @@ import subprocess, statistics, re
 # Load the analogy dataset
 dataset = load_dataset("tomasmcz/word2vec_analogy", split="train")
 print(f"Loaded {len(dataset)} analogies")
+print(f"1 is equal, 0 is not related, -1 is opposite")
 
 def run_test(a, b, c, d):
     try:
@@ -17,18 +18,31 @@ def run_test(a, b, c, d):
     except subprocess.CalledProcessError:
         return None
 
-diffs = []
+cosine = []
+words = []
 count = 0
 for item in dataset:
     a, b, c, d = item["word_a"], item["word_b"], item["word_c"], item["word_d"]
-    diff = run_test(a, b, c, d)
+    cos = run_test(a, b, c, d)
     count += 1
-    if diff is not None:
-        diffs.append(diff)
-    if count > 20000:
-        break
+    if cos is not None:
+        cosine.append(cos)
+        words.append((a, b, c, d))
+    if count % 10 == 0:
+        print(f"\rDone with {count} tests", end="", flush=True)
+    if count % 500 == 0:
+        min_index = cosine.index(min(cosine))
+        max_index = cosine.index(max(cosine))
+        print(f"\nBest cosine similarity case: {words[min_index]} -> {cosine[min_index]:.4f}")
+        print(f"Worst cosine similarity case: {words[max_index]} -> {cosine[max_index]:.4f}")
 
-print(f"Tested {len(diffs)}/{len(dataset)} cases")
-print(f"Mean diff: {statistics.mean(diffs):.4f}")
-print(f"Min diff:  {min(diffs):.4f}")
-print(f"Max diff:  {max(diffs):.4f}")
+print(f"\nTested {len(cosine)}/{len(dataset)} cases")
+print(f"Mean cosine similarity: {statistics.mean(cosine):.4f}")
+
+# Find min and max indices
+min_index = cosine.index(min(cosine))
+max_index = cosine.index(max(cosine))
+
+print(f"\nBest cosine similarity case: {words[min_index]} -> {cosine[min_index]:.4f}")
+print(f"Worst cosine similarity case: {words[max_index]} -> {cosine[max_index]:.4f}")
+print("Testing completed.")

@@ -25,7 +25,7 @@ bool parseArguments(int argc, char *argv[])
     windowSize = 8;
     learningRate = 0.01f;
     threads = 12;
-    documentCount = 10000;
+    documentCount = 500;
     repeatCount = 5;
     trainVectors = false;
 
@@ -116,7 +116,7 @@ bool parseArguments(int argc, char *argv[])
             cout << "-window <number> : Set the window size (default: 8)" << endl;
             cout << "-repeat <number> : Set the number of repeat times (default: 1)" << endl;
             cout << "-negative <number> : Set the number of negative samples (default: 12)" << endl;
-            cout << "-documentCount <number> : Set the number of documents to process (default: 10000)" << endl;
+            cout << "-documentCount <number> : Set the number of documents to process (default: 500)" << endl;
             cout << "-lr <float> : Set the start learning rate (default: 0.01). Range 0.00001 - 0.5" << endl;
             cout << "-vtrain <file> : Load rules from training data" << endl;
             cout << "-vfile <file> : Load rules from a file" << endl;

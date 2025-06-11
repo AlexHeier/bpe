@@ -81,7 +81,6 @@ void StartTest(string one, string two, string three, string target)
         normB += vec4[i] * vec4[i];
     }
     float cosineSim = dot / (sqrt(normA) * sqrt(normB));
-    float diff = 1.0f - cosineSim;
 
-    cout << "Relative difference between *" << one << " - *" << two << " + *" << three << " ~= " << target << " : " << diff << endl;
+    cout << "Relative difference between *" << one << " - *" << two << " + *" << three << " ~= " << target << " : " << cosineSim << endl;
 }
