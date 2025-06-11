@@ -14,7 +14,7 @@ map<int, pair<int, int>> RulesFromTraining(string filename)
 
     vector<int> asciiText = FileToASCII(filename);
 
-    cout << "Length of vocab training text " << asciiText.size();
+    cout << "Length of vocab training text " << asciiText.size() << endl;
 
     map<int, pair<int, int>> mergeRules;
 
@@ -49,6 +49,8 @@ map<int, pair<int, int>> RulesFromTraining(string filename)
                 j += 1;
             }
         }
+
+        cout << "\rCurrent vocab size: " << (i+1) << flush;
 
         asciiText = newText;
     }
@@ -102,39 +104,28 @@ map<int, pair<int, int>> RulesFromFile(string filename)
 
 vector<int> Encode(string text)
 {
-    map<pair<int, int>, int> pairToId;
-    for (const auto &rule : MERGERULES)
-    {
-        pairToId[make_pair(rule.second.first, rule.second.second)] = rule.first;
-    }
-
-    // Initial encoding: each char -> int
-    vector<int> encodedText;
+    vector<int> tokens;
     for (char c : text)
     {
-        encodedText.push_back(static_cast<unsigned char>(c));
+        tokens.push_back(static_cast<unsigned char>(c));
     }
 
-    // Perform the merges
-    vector<int> result;
-    size_t i = 0;
-    while (i < encodedText.size())
+    for (const auto &rule : MERGERULES)
     {
-        if (i + 1 < encodedText.size())
+        int id = rule.first;
+        int first = rule.second.first;
+        int second = rule.second.second;
+
+        for (size_t i = 0; i+1 < tokens.size();)
         {
-            auto it = pairToId.find({encodedText[i], encodedText[i + 1]});
-            if (it != pairToId.end())
+            if (tokens[i] == first && tokens[i+1] == second)
             {
-                // If a merge exists, push merged id and skip next
-                result.push_back(it->second);
-                i += 2;
-                continue;
+                tokens[i] = id;
+                tokens.erase(tokens.begin() + i + 1);
+            } else {
+                i++;
             }
         }
-        // Otherwise just push current
-        result.push_back(encodedText[i]);
-        i++;
     }
-
-    return result;
+    return tokens;
 }

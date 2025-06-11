@@ -5,6 +5,7 @@
 #include <utility>
 #include <algorithm>
 #include <filesystem>
+#include <string>
 
 using namespace std;
 
@@ -18,7 +19,7 @@ bool parseArguments(int argc, char *argv[])
     bool newRules = false;
 
     maxVocabSize = 25000;
-    vectorSize = 2500;
+    vectorSize = 1256;
     epochs = 10;
     negativeSamples = 5;
     windowSize = 10;
@@ -134,12 +135,21 @@ bool parseArguments(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-
     if (!parseArguments(argc, argv))
     {
         cout << "No rules provided. Use -vtrain or -vfile to provide rules." << endl;
         return 1;
     }
+
+    string startText = "<|endoftext|>";
+    vector<int> decodedText = Encode(startText);
+    cout << "Encoded text: ";
+    for (int token : decodedText)
+    {
+        cout << token << " ";
+    }
+
+    cout << endl << "Encoded text length " << decodedText.size() << endl << "Before decoding: " << startText.size() << endl;
 
     if (trainVectors){
         string fodlerpath = "./training_data/";
