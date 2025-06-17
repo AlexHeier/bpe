@@ -315,6 +315,7 @@ map<int, vector<float>> Training(const string &folderPath)
                                 { return batchReady.load(); }))
                 {
                     ids = move(nextBatchIds);
+                    errors = move(batchFileErrors);
                     batchReady = false;
                     cout << endl
                          << "Batch proccesed: Files " << batchStart + 1 << " to " << batchEnd << endl;
@@ -334,8 +335,13 @@ map<int, vector<float>> Training(const string &folderPath)
                 }
             }
 
-            cout << "Batch errors: " << errors << " out of " << documentCount << endl;
+            if (errors != 0)
+            {
+                cout << "Errors loading " << errors << " / " << documentCount << " files" <<endl;
+            }
 
+            cout << "Current batch size: " << ids.size() << endl;
+            
             for (const auto &id : ids)
             {
                 frequencyMap[id]++;
