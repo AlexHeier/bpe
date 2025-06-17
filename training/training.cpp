@@ -14,6 +14,8 @@
 #include <mutex>
 #include <sstream>
 #include <unordered_map>
+#include <condition_variable>
+#include <atomic>
 
 #include "..\global.h"
 #include "..\vocab\vocab.h"
@@ -29,6 +31,11 @@ map<int, float> discardProb;
 int totalWords = 0;
 float samplingThreshold = 1e-5;
 bool trainingDone = false;
+
+vector<int> nextBatchIds;
+condition_variable cv;
+mutex batchMutex;
+atomic<bool> batchReady(false);
 
 int min(int a, int b)
 {
@@ -230,6 +237,20 @@ static void process_window(const vector<int> &ids, int j, int totalSize, int win
     }
 }
 
+void process_batch(vector<string> &fileNames, int batchStart, int batchEnd)
+{
+    vector<string> batchFiles = get_file_batch(fileNames, batchStart, batchEnd);
+    vector<int> ids = TextToIDs(batchFiles);
+
+    {
+        lock_guard<mutex> lock(batchMutex);
+        nextBatchIds = move(ids);
+        batchReady = true;
+    }
+
+    cv.notify_one();
+}
+
 map<int, vector<float>> Training(const string &folderPath)
 {
     cout << "Training started..." << endl;
@@ -254,6 +275,8 @@ map<int, vector<float>> Training(const string &folderPath)
     cout << "Starting saveing to file..." << endl;
     thread dbThread(saveToFile);
 
+    cout << endl << "---------------------------------------------------------------------------------------" << endl;
+
     for (int epoch = 0; epoch < epochs; ++epoch)
     {
         cout << endl
@@ -263,13 +286,47 @@ map<int, vector<float>> Training(const string &folderPath)
         {
             float currentLR = learningRate * (1.0f - float(batchStart) / float(totalFiles));
             currentLR = max(currentLR, 0.001f * learningRate);
-
             int batchEnd = min(batchStart + documentCount, totalFiles);
-            vector<string> batchFiles = get_file_batch(fileNames, batchStart, batchEnd);
-            vector<int> ids = TextToIDs(batchFiles);
 
-            cout << endl
-                 << "Batch processing: Files " << batchStart + 1 << " to " << batchEnd << endl;
+            vector<int> ids;
+
+            if (batchStart == 0)
+            {
+
+                vector<string> batchFiles = get_file_batch(fileNames, batchStart, batchEnd);
+                ids = TextToIDs(batchFiles);
+                cout << endl
+                     << "Batch proccesed: Files " << batchStart + 1 << " to " << batchEnd;
+                if (batchEnd < totalFiles)
+                {
+                    thread(process_batch, ref(fileNames), batchEnd, min(batchEnd + documentCount, totalFiles)).detach();
+                }
+            }
+            else
+            {
+                unique_lock<mutex> lock(batchMutex);
+                if (cv.wait_for(lock, chrono::minutes(3), []
+                                { return batchReady.load(); }))
+                {
+                    ids = move(nextBatchIds);
+                    batchReady = false;
+                    cout << endl
+                         << "Batch proccesed: Files " << batchStart + 1 << " to " << batchEnd << endl;
+                    if (batchEnd < totalFiles)
+                    {
+                        thread(process_batch, ref(fileNames), batchEnd, min(batchEnd + documentCount, totalFiles)).detach();
+                    }
+                }
+                else
+                {
+                    cout << "Timeout while waiting for data." << endl;
+                    if (batchEnd < totalFiles)
+                    {
+                        thread(process_batch, ref(fileNames), batchEnd, min(batchEnd + documentCount, totalFiles)).detach();
+                    }
+                    continue;
+                }
+            }
 
             for (const auto &id : ids)
             {
