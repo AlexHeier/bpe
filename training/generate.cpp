@@ -99,7 +99,7 @@ vector<int> TextToIDs(const vector<string> &fileNames)
         cerr << "Error: No IDs generated from the files." << endl;
     }
 
-    cout << "Read " << (fileNames.size() - errors) << " files out of " << fileNames.size() << endl;
+    cout << endl << "Read " << (fileNames.size() - errors) << " files out of " << fileNames.size();
 
 
     return allIds;

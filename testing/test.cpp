@@ -80,6 +80,12 @@ void StartTest(string one, string two, string three, string target)
         normA += testVec[i] * testVec[i];
         normB += vec4[i] * vec4[i];
     }
+
+    if (normA == 0.0f || normB == 0.0f)
+    {
+        cout << "Zero norm encountered!" << endl;
+        return;
+    }
     float cosineSim = dot / (sqrt(normA) * sqrt(normB));
 
     cout << "Relative difference between *" << one << " - *" << two << " + *" << three << " ~= " << target << " : " << cosineSim << endl;

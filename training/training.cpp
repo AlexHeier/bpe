@@ -13,6 +13,7 @@
 #include <chrono>
 #include <mutex>
 #include <sstream>
+#include <unordered_map>
 
 #include "..\global.h"
 #include "..\vocab\vocab.h"
@@ -24,6 +25,9 @@ namespace fs = std::filesystem;
 map<int, vector<float>> vectorMap;
 mutex vectorMutex;
 map<int, int> frequencyMap;
+map<int, float> discardProb;
+int totalWords = 0;
+float samplingThreshold = 1e-5;
 bool trainingDone = false;
 
 int min(int a, int b)
@@ -41,7 +45,7 @@ float sigmod(float x)
     return 1.0f / (1.0f + exp(-x));
 }
 
-vector<float> getVector(int id, map<int, vector<float>> &local)
+vector<float> getVector(int id, unordered_map<int, vector<float>> &local)
 {
     auto it = local.find(id);
     if (it != local.end())
@@ -54,7 +58,8 @@ vector<float> getVector(int id, map<int, vector<float>> &local)
     }
 }
 
-void saveToFile(){
+void saveToFile()
+{
     while (true)
     {
         this_thread::sleep_for(chrono::minutes(5));
@@ -64,22 +69,23 @@ void saveToFile(){
 
         ofstream out(vectorFile, ios::binary);
 
-        if (!out){
+        if (!out)
+        {
             cout << "Failed to open " << vectorFile << " for saving. Continuing...";
             continue;
         }
 
         size_t mapSize = local.size();
-        out.write(reinterpret_cast<const char*>(&mapSize), sizeof(mapSize));
-        out.write(reinterpret_cast<const char*>(&vectorSize), sizeof(vectorSize));
+        out.write(reinterpret_cast<const char *>(&mapSize), sizeof(mapSize));
+        out.write(reinterpret_cast<const char *>(&vectorSize), sizeof(vectorSize));
 
-        for (const auto& [key, vec] : local){
-            out.write(reinterpret_cast<const char*>(&key), sizeof(key));
-            out.write(reinterpret_cast<const char*>(vec.data()), vectorSize * sizeof(float));
+        for (const auto &[key, vec] : local)
+        {
+            out.write(reinterpret_cast<const char *>(&key), sizeof(key));
+            out.write(reinterpret_cast<const char *>(vec.data()), vectorSize * sizeof(float));
         }
     }
 }
-
 
 vector<string> GetFileNamesFromDirectory(const string &folderPath)
 {
@@ -95,8 +101,8 @@ vector<string> GetFileNamesFromDirectory(const string &folderPath)
 }
 
 void AverageThreadResults(
-    const vector<map<int, vector<float>>> &threadVectorMaps,
-    const vector<map<int, int>> &threadWordCountMaps,
+    const vector<unordered_map<int, vector<float>>> &threadVectorMaps,
+    const vector<unordered_map<int, int>> &threadWordCountMaps,
     int vectorSize)
 {
     set<int> all_ids;
@@ -107,7 +113,6 @@ void AverageThreadResults(
         for (const auto &[id, count] : wordCountMap)
         {
             all_ids.insert(id);
-            frequencyMap[id] += count;
         }
     }
 
@@ -145,14 +150,13 @@ void AverageThreadResults(
             }
         }
 
-        // Now update the global vectorMap directly
         vectorMutex.lock();
         vectorMap[id] = avgVector;
         vectorMutex.unlock();
     }
 }
 
-tuple<vector<float>, vector<float>, float> updateVectors(vector<float> tar, vector<float> con, int label)
+tuple<vector<float>, vector<float>, float> updateVectors(vector<float> tar, vector<float> con, int label, float lr)
 {
     if (tar.size() != vectorSize || con.size() != vectorSize)
     {
@@ -177,8 +181,8 @@ tuple<vector<float>, vector<float>, float> updateVectors(vector<float> tar, vect
 
     for (int i = 0; i < vectorSize; ++i)
     {
-        tar[i] -= learningRate * grad * original_con[i];
-        con[i] -= learningRate * grad * original_tar[i];
+        tar[i] -= lr * grad * original_con[i];
+        con[i] -= lr * grad * original_tar[i];
     }
 
     return {tar, con, loss};
@@ -190,10 +194,11 @@ static vector<string> get_file_batch(const vector<string> &filenames, int start,
 }
 
 static void process_window(const vector<int> &ids, int j, int totalSize, int windowSize, int negativeSamples,
-                           map<int, vector<float>> &localVectorMap,
-                           map<int, int> &localWordCountMap,
+                           unordered_map<int, vector<float>> &localVectorMap,
+                           unordered_map<int, int> &localWordCountMap,
                            float &tloss,
-                           const map<int, vector<float>> &vectorMap)
+                           const map<int, vector<float>> &vectorMap,
+                           float lr)
 {
     int windowStart = max(j - windowSize, 0);
     int windowEnd = min(j + windowSize, totalSize);
@@ -203,7 +208,7 @@ static void process_window(const vector<int> &ids, int j, int totalSize, int win
         if (k != j)
         {
             auto [targetVector, contextVector, loss] = updateVectors(getVector(ids[j], localVectorMap),
-                                                                     getVector(ids[k], localVectorMap), 1);
+                                                                     getVector(ids[k], localVectorMap), 1, lr);
             localVectorMap[ids[j]] = targetVector;
             localVectorMap[ids[k]] = contextVector;
             tloss += loss;
@@ -215,7 +220,7 @@ static void process_window(const vector<int> &ids, int j, int totalSize, int win
                 int randomIndex = rand() % totalSize;
                 int randomWord = ids[randomIndex];
                 auto [negTarget, negContext, negLoss] = updateVectors(getVector(ids[j], localVectorMap),
-                                                                      getVector(randomWord, localVectorMap), 0);
+                                                                      getVector(randomWord, localVectorMap), 0, lr);
                 localVectorMap[ids[j]] = negTarget;
                 localVectorMap[randomWord] = negContext;
                 localWordCountMap[ids[j]]++;
@@ -228,17 +233,19 @@ static void process_window(const vector<int> &ids, int j, int totalSize, int win
 map<int, vector<float>> Training(const string &folderPath)
 {
     cout << "Training started..." << endl;
-    if(filesystem::exists(vectorFile)){
+    if (filesystem::exists(vectorFile))
+    {
         cout << "Loading vector map from file" << endl;
         vectorMap = LoadVectorsFromBinary();
         cout << "Vector map loaded" << endl;
-
-    } else {
+    }
+    else
+    {
         cout << vectorFile + " doesnt exsist. Generating vector map" << endl;
         vectorMap = GenerateVectors();
         cout << "Base vector map generated" << endl;
     }
-    
+
     cout << "The folderpath: " << folderPath << endl;
     vector<string> fileNames = GetFileNamesFromDirectory(folderPath);
     int totalFiles = fileNames.size();
@@ -249,21 +256,42 @@ map<int, vector<float>> Training(const string &folderPath)
 
     for (int epoch = 0; epoch < epochs; ++epoch)
     {
-        cout << endl << "Epoch " << epoch + 1 << " started..." << endl;
+        cout << endl
+             << "Epoch " << epoch + 1 << " started..." << endl;
 
         for (int batchStart = 0; batchStart < totalFiles; batchStart += documentCount)
         {
+            float currentLR = learningRate * (1.0f - float(batchStart) / float(totalFiles));
+            currentLR = max(currentLR, 0.001f * learningRate);
+
             int batchEnd = min(batchStart + documentCount, totalFiles);
             vector<string> batchFiles = get_file_batch(fileNames, batchStart, batchEnd);
             vector<int> ids = TextToIDs(batchFiles);
 
-            cout << endl <<"Batch processed: Files " << batchStart + 1 << " to " << batchEnd << endl;
+            cout << endl
+                 << "Batch processing: Files " << batchStart + 1 << " to " << batchEnd << endl;
+
+            for (const auto &id : ids)
+            {
+                frequencyMap[id]++;
+                totalWords++;
+            }
+
+            for (const auto &pair : frequencyMap)
+            {
+                int id = pair.first;
+                int freq = pair.second;
+                float f = freq / (float)totalWords;
+                float prob = 1.0f - sqrt(samplingThreshold / f);
+                prob = max(0.0f, prob);
+                discardProb[id] = prob;
+            }
 
             int totalSize = ids.size();
             int chunkSize = (totalSize + threads - 1) / threads;
 
-            vector<map<int, vector<float>>> threadVectorMaps(threads);
-            vector<map<int, int>> threadWordCountMaps(threads);
+            vector<unordered_map<int, vector<float>>> threadVectorMaps(threads);
+            vector<unordered_map<int, int>> threadWordCountMaps(threads);
             vector<thread> threadPool;
             vector<float> threadLosses(threads, 0.0f);
 
@@ -271,20 +299,24 @@ map<int, vector<float>> Training(const string &folderPath)
             {
                 threadPool.emplace_back([&, t]()
                                         {
-                    map<int, vector<float>> localVectorMap;
-                    map<int, int> localWordCountMap;
+                    unordered_map<int, vector<float>> localVectorMap;
+                    unordered_map<int, int> localWordCountMap;
                     float tloss = 0.0f;
 
                     int startIdx = t * chunkSize;
                     int endIdx = min(startIdx + chunkSize, totalSize);
 
-                    for (int o = 0; o < repeatCount; ++o) {
-                        for (int j = startIdx; j < endIdx; ++j) {
-                            process_window(ids, j, totalSize, windowSize, negativeSamples,
-                                           localVectorMap, localWordCountMap, tloss,
-                                           vectorMap);
+                    for (int j = startIdx; j < endIdx; ++j) {
+                        if (discardProb.find(ids[j]) != discardProb.end() &&
+                            static_cast<float>(rand()) / RAND_MAX < discardProb[ids[j]])
+                        {
+                            continue;
                         }
+                        process_window(ids, j, totalSize, windowSize, negativeSamples,
+                                        localVectorMap, localWordCountMap, tloss,
+                                        vectorMap, currentLR);
                     }
+                    
                 
                     threadVectorMaps[t] = move(localVectorMap);
                     threadWordCountMaps[t] = move(localWordCountMap);

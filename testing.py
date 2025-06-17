@@ -22,9 +22,11 @@ cosine = []
 words = []
 count = 0
 for item in dataset:
+    count += 1
+    if count <= 8500:
+        continue
     a, b, c, d = item["word_a"], item["word_b"], item["word_c"], item["word_d"]
     cos = run_test(a, b, c, d)
-    count += 1
     if cos is not None:
         cosine.append(cos)
         words.append((a, b, c, d))
@@ -33,16 +35,17 @@ for item in dataset:
     if count % 500 == 0:
         min_index = cosine.index(min(cosine))
         max_index = cosine.index(max(cosine))
-        print(f"\nBest cosine similarity case: {words[min_index]} -> {cosine[min_index]:.4f}")
-        print(f"Worst cosine similarity case: {words[max_index]} -> {cosine[max_index]:.4f}")
+        print(f"\nAverage cosine similarity: {statistics.mean(cosine):.4f}")
+        print(f"Furthest cosine similarity case: {words[min_index]} -> {cosine[min_index]:.4f}")
+        print(f"Closest cosine similarity case: {words[max_index]} -> {cosine[max_index]:.4f}\n")
 
 print(f"\nTested {len(cosine)}/{len(dataset)} cases")
-print(f"Mean cosine similarity: {statistics.mean(cosine):.4f}")
+print(f"Average cosine similarity: {statistics.mean(cosine):.4f}")
 
 # Find min and max indices
 min_index = cosine.index(min(cosine))
 max_index = cosine.index(max(cosine))
 
-print(f"\nBest cosine similarity case: {words[min_index]} -> {cosine[min_index]:.4f}")
-print(f"Worst cosine similarity case: {words[max_index]} -> {cosine[max_index]:.4f}")
+print(f"\nFurthest cosine similarity case: {words[min_index]} -> {cosine[min_index]:.4f}")
+print(f"Closest cosine similarity case: {words[max_index]} -> {cosine[max_index]:.4f}")
 print("Testing completed.")
