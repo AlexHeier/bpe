@@ -17,9 +17,9 @@
 #include <condition_variable>
 #include <atomic>
 
-#include "..\global.h"
-#include "..\vocab\vocab.h"
-#include "..\training\generate.h"
+#include "../global.h"
+#include "../vocab/vocab.h"
+#include "../training/generate.h"
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -28,13 +28,14 @@ map<int, vector<float>> vectorMap;
 mutex vectorMutex;
 map<int, int> frequencyMap;
 map<int, float> discardProb;
-int totalWords = 0;
+int64_t totalWords = 0;
 float samplingThreshold = 1e-5;
 bool trainingDone = false;
 
 vector<int> nextBatchIds;
 condition_variable cv;
 mutex batchMutex;
+int batchFileErrors = 0;
 atomic<bool> batchReady(false);
 
 int min(int a, int b)
@@ -240,11 +241,13 @@ static void process_window(const vector<int> &ids, int j, int totalSize, int win
 void process_batch(vector<string> &fileNames, int batchStart, int batchEnd)
 {
     vector<string> batchFiles = get_file_batch(fileNames, batchStart, batchEnd);
-    vector<int> ids = TextToIDs(batchFiles);
+    pair<vector<int>,int> temp = TextToIDs(batchFiles);
+      
 
     {
         lock_guard<mutex> lock(batchMutex);
-        nextBatchIds = move(ids);
+        nextBatchIds = move(temp.first);
+        batchFileErrors = move(temp.second);
         batchReady = true;
     }
 
@@ -289,14 +292,17 @@ map<int, vector<float>> Training(const string &folderPath)
             int batchEnd = min(batchStart + documentCount, totalFiles);
 
             vector<int> ids;
+            int errors = 0;
 
             if (batchStart == 0)
             {
 
                 vector<string> batchFiles = get_file_batch(fileNames, batchStart, batchEnd);
-                ids = TextToIDs(batchFiles);
+                pair<vector<int>,int> temp = TextToIDs(batchFiles);
+                ids = move(temp.first);
+                errors = temp.second;
                 cout << endl
-                     << "Batch proccesed: Files " << batchStart + 1 << " to " << batchEnd;
+                     << "Batch proccesed: Files " << batchStart + 1 << " to " << batchEnd << endl;
                 if (batchEnd < totalFiles)
                 {
                     thread(process_batch, ref(fileNames), batchEnd, min(batchEnd + documentCount, totalFiles)).detach();
@@ -328,11 +334,15 @@ map<int, vector<float>> Training(const string &folderPath)
                 }
             }
 
+            cout << "Batch errors: " << errors << " out of " << documentCount << endl;
+
             for (const auto &id : ids)
             {
                 frequencyMap[id]++;
                 totalWords++;
             }
+
+            cout << "Current training subword total: " << totalWords << endl;
 
             for (const auto &pair : frequencyMap)
             {

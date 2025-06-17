@@ -29,6 +29,9 @@ bool parseArguments(int argc, char *argv[])
     repeatCount = 5;
     trainVectors = false;
 
+    string RulesFile;
+    string RulesTraining;
+
     cout << "---------------------------------------------------------------------------------------\n" << endl;
 
     for (int i = 1; i < argc; ++i)
@@ -82,17 +85,12 @@ bool parseArguments(int argc, char *argv[])
         }
         else if (arg == "-vtrain" && i + 1 < argc)
         {
-            cout << "Rules from training data." << endl;
-            RulesFromTraining(argv[++i]);
-            newRules = true;
+            RulesTraining = argv[++i];
             
         }
         else if (arg == "-vfile" && i + 1 < argc)
         {
-            cout << "Rules from file." << endl;
-            RulesFromFile(argv[++i]);
-            newRules = true;
-            
+            RulesFile = argv[++i];        
         }
          else if (arg == "-test" && i + 4 < argc)
         {
@@ -104,6 +102,7 @@ bool parseArguments(int argc, char *argv[])
         else if (arg == "-vecTrain")
         {
             trainVectors = true;
+            cout << "Training vectors enabled" << endl;
             
         }
         else if (arg == "-help")
@@ -111,22 +110,36 @@ bool parseArguments(int argc, char *argv[])
             cout << endl;
             cout << "-threads <number> : Set the number of threads to use (default: 12)" << endl;
             cout << "-vocabsize <number> : Set the maximum vocabulary size (default: 25000)" << endl;
-            cout << "-vectorSize <number> : Set the size of the vectors (default: 1256)" << endl;
+            cout << "-vectorSize <number> : Set the size of the vectors (default: 1024)" << endl;
             cout << "-epochs <number> : Set the number of epochs (default: 10)" << endl;
             cout << "-window <number> : Set the window size (default: 8)" << endl;
-            cout << "-repeat <number> : Set the number of repeat times (default: 1)" << endl;
             cout << "-negative <number> : Set the number of negative samples (default: 12)" << endl;
             cout << "-documentCount <number> : Set the number of documents to process (default: 500)" << endl;
+            cout << "-repeat <number> : Set the number of repeat times (default: 5)" << endl;
             cout << "-lr <float> : Set the start learning rate (default: 0.01). Range 0.00001 - 0.5" << endl;
             cout << "-vtrain <file> : Load rules from training data" << endl;
             cout << "-vfile <file> : Load rules from a file" << endl;
-            cout << endl << "-vecTrain: Train vectors from file or vocabulary. Training data location ./training_data/" << endl;
-            cout << endl << "-test : runs a semantic test on the vectors.bin file. Test format is word1 - word2 + word3 ~= word4" << endl;
+
+            cout << endl << "-vecTrain : Train vectors from file or vocabulary. Training data location: ./training_data/" << endl;
+            cout << endl << "-test <w1> <w2> <w3> <w4> : Run a semantic test on the vectors.bin file. Returns cosine similarity from -1 to 1"  << endl;
+            cout << "  Test format: word1 - word2 + word3 ~= word4" << endl;
             cout << endl << "-help : Show this help message" << endl;
             cout << endl;
         }
         
     }
+
+    if (!RulesFile.empty()){
+        cout << "Loading rules from file: " << RulesFile << endl;
+        RulesFromFile(RulesFile);
+        newRules = true;
+    }
+    if (!RulesTraining.empty()){
+        cout << "Loading rules from training data: " << RulesTraining << endl;
+        RulesFromTraining(RulesTraining);
+        newRules = true;
+    }
+    
 
     cout << "\n---------------------------------------------------------------------------------------\n" << endl;
 

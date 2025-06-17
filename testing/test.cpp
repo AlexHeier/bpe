@@ -3,8 +3,8 @@
 #include <vector>
 #include <cmath>
 
-#include "..\global.h"
-#include "..\vocab\vocab.h"
+#include "../global.h"
+#include "../vocab/vocab.h"
 
 using namespace std;
 

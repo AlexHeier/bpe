@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "ASCII.h"
-#include "..\global.h"
+#include "../global.h"
 #include "saveDecodeCommon.h"
 using namespace std;
 
@@ -98,7 +98,7 @@ map<int, pair<int, int>> RulesFromFile(string filename)
     }
 
     file.close();
-    cout << "Merge rule count: " << MERGERULES.size() << endl;
+    cout << "Merge rule from file: " << MERGERULES.size() << " and 256 ASCII characters" << endl;
     return MERGERULES;
 }
 

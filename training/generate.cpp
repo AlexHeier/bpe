@@ -9,8 +9,8 @@
 #include <thread>
 #include <mutex>
 
-#include "..\global.h"
-#include "..\vocab\vocab.h"
+#include "../global.h"
+#include "../vocab/vocab.h"
 
 using namespace std;
 
@@ -57,7 +57,7 @@ map<int, vector<float>> GenerateVectors()
     return vectorMap;
 }
 
-vector<int> TextToIDs(const vector<string> &fileNames)
+pair<vector<int>, int> TextToIDs(const vector<string> &fileNames)
 {
     vector<int> allIds;
     vector<thread> threads;
@@ -99,6 +99,6 @@ vector<int> TextToIDs(const vector<string> &fileNames)
         cerr << "Error: No IDs generated from the files." << endl;
     }
 
-    return allIds;
+    return make_pair(allIds, errors);
 }
 
