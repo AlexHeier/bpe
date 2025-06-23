@@ -14,7 +14,9 @@ map<int, pair<int, int>> RulesFromTraining(string filename)
 
     vector<int> asciiText = FileToASCII(filename);
 
-    cout << "Length of vocab training text " << asciiText.size() << endl;
+    size_t start_size = asciiText.size();
+
+    cout << "Length of vocab training text is " << asciiText.size() << " characters" << endl;
 
     map<int, pair<int, int>> mergeRules;
 
@@ -55,9 +57,15 @@ map<int, pair<int, int>> RulesFromTraining(string filename)
         asciiText = newText;
     }
 
-    SaveMergeRules(mergeRules, "merge_rules.txt");
+    MERGERULES = move(mergeRules);
 
-    return mergeRules;
+    size_t end_size = asciiText.size();
+
+    cout << "Input text reduced from " << start_size << " to " << end_size << " characters (" << float(start_size)/float(end_size) << "%)" << endl;
+
+    SaveMergeRules(MERGERULES, "merge_rules.txt");
+
+    return MERGERULES;
 }
 
 void Decode(int id, const map<int, pair<int, int>> &mergeRules)

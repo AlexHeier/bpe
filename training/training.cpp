@@ -284,11 +284,14 @@ map<int, vector<float>> Training(const string &folderPath)
     {
         cout << endl
              << "Epoch " << epoch + 1 << " started..." << endl;
+        float currentLR = learningRate * 0.5f * (1.0f + cos(float(epoch) / float(epochs) * 3.14159265358979323846f));
+        currentLR = max(currentLR, 0.0001f * learningRate);
+        cout << "Current learning rate: " << currentLR << endl;
+        
 
         for (int batchStart = 0; batchStart < totalFiles; batchStart += documentCount)
         {
-            float currentLR = learningRate * (1.0f - float(batchStart) / float(totalFiles));
-            currentLR = max(currentLR, 0.001f * learningRate);
+            
             int batchEnd = min(batchStart + documentCount, totalFiles);
 
             vector<int> ids;

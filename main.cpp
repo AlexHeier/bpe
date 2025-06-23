@@ -19,7 +19,7 @@ bool parseArguments(int argc, char *argv[])
     bool newRules = false;
 
     maxVocabSize = 25000;
-    vectorSize = 1024;
+    vectorSize = 768; // Same as ChatGPT 2
     epochs = 10;
     negativeSamples = 12;
     windowSize = 8;
@@ -135,7 +135,7 @@ bool parseArguments(int argc, char *argv[])
         newRules = true;
     }
     if (!RulesTraining.empty()){
-        cout << "Loading rules from training data: " << RulesTraining << endl;
+        cout << "Training rules from: " << RulesTraining << endl;
         RulesFromTraining(RulesTraining);
         newRules = true;
     }
@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
     {
         cout << "No rules provided. Use -vtrain or -vfile to provide rules." << endl;
         return 1;
-    }
+    }   
 
     if (trainVectors){
         string fodlerpath = "./training_data/";

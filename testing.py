@@ -23,7 +23,7 @@ words = []
 count = 0
 for item in dataset:
     count += 1
-    if count <= 8500:
+    if count < 8500:
         continue
     a, b, c, d = item["word_a"], item["word_b"], item["word_c"], item["word_d"]
     cos = run_test(a, b, c, d)
