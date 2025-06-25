@@ -26,7 +26,7 @@ namespace fs = std::filesystem;
 
 map<int, vector<float>> vectorMap;
 mutex vectorMutex;
-map<int, int> frequencyMap;
+unordered_map<int, int> frequencyMap;
 map<int, float> discardProb;
 int64_t totalWords = 0;
 float samplingThreshold = 1e-5;
@@ -150,16 +150,44 @@ void AverageThreadResults(
             }
         }
 
-        if (totalCount > 0)
+        if (totalCount == 0)
         {
-            for (int i = 0; i < vectorSize; ++i)
-            {
-                avgVector[i] /= totalCount;
-            }
+            continue;
+        }
+
+        for (int i = 0; i < vectorSize; ++i)
+        {
+            avgVector[i] /= float(totalCount);
         }
 
         vectorMutex.lock();
-        vectorMap[id] = avgVector;
+
+        size_t newCount = totalCount + frequencyMap[id];
+
+        float alpha = float(totalCount) / float(newCount);
+
+        if (vectorMap[id].empty())
+        {
+            vectorMap[id] = avgVector;
+        }
+        else
+        {
+            for (int i = 0; i < vectorSize; ++i)
+            {
+                vectorMap[id][i] = alpha * avgVector[i] + (1.0f - alpha) * vectorMap[id][i];
+            }
+        }
+
+        float norm = 0.f;
+        for (float v : vectorMap[id])
+            norm += v * v;
+        norm = sqrt(norm);
+        if (norm > 0.f)
+        {
+            for (float &v : vectorMap[id])
+                v /= norm;
+        }
+
         vectorMutex.unlock();
     }
 }
@@ -241,8 +269,7 @@ static void process_window(const vector<int> &ids, int j, int totalSize, int win
 void process_batch(vector<string> &fileNames, int batchStart, int batchEnd)
 {
     vector<string> batchFiles = get_file_batch(fileNames, batchStart, batchEnd);
-    pair<vector<int>,int> temp = TextToIDs(batchFiles);
-      
+    pair<vector<int>, int> temp = TextToIDs(batchFiles);
 
     {
         lock_guard<mutex> lock(batchMutex);
@@ -278,7 +305,8 @@ map<int, vector<float>> Training(const string &folderPath)
     cout << "Starting saveing to file..." << endl;
     thread dbThread(saveToFile);
 
-    cout << endl << "---------------------------------------------------------------------------------------" << endl;
+    cout << endl
+         << "---------------------------------------------------------------------------------------" << endl;
 
     for (int epoch = 0; epoch < epochs; ++epoch)
     {
@@ -287,11 +315,10 @@ map<int, vector<float>> Training(const string &folderPath)
         float currentLR = learningRate * 0.5f * (1.0f + cos(float(epoch) / float(epochs) * 3.14159265358979323846f));
         currentLR = max(currentLR, 0.0001f * learningRate);
         cout << "Current learning rate: " << currentLR << endl;
-        
 
         for (int batchStart = 0; batchStart < totalFiles; batchStart += documentCount)
         {
-            
+
             int batchEnd = min(batchStart + documentCount, totalFiles);
 
             vector<int> ids;
@@ -301,7 +328,7 @@ map<int, vector<float>> Training(const string &folderPath)
             {
 
                 vector<string> batchFiles = get_file_batch(fileNames, batchStart, batchEnd);
-                pair<vector<int>,int> temp = TextToIDs(batchFiles);
+                pair<vector<int>, int> temp = TextToIDs(batchFiles);
                 ids = move(temp.first);
                 errors = temp.second;
                 cout << endl
@@ -340,11 +367,11 @@ map<int, vector<float>> Training(const string &folderPath)
 
             if (errors != 0)
             {
-                cout << "Errors loading " << errors << " / " << documentCount << " files" <<endl;
+                cout << "Errors loading " << errors << " / " << documentCount << " files" << endl;
             }
 
             cout << "Current batch size: " << ids.size() << endl;
-            
+
             for (const auto &id : ids)
             {
                 frequencyMap[id]++;

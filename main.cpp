@@ -152,8 +152,8 @@ int main(int argc, char *argv[])
     {
         cout << "No rules provided. Use -vtrain or -vfile to provide rules." << endl;
         return 1;
-    }   
-
+    }
+    
     if (trainVectors){
         string fodlerpath = "./training_data/";
         Training(fodlerpath);
