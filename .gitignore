@@ -2,6 +2,9 @@
 test.txt
 
 *.exe
+*.bin
+
+my_bpe*
 
 .vscode/
 

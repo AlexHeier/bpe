@@ -5,5 +5,7 @@
 
 void StartTest(string, string, string, string);
 
+void BatchTest(const string filePath);
+
 
 #endif

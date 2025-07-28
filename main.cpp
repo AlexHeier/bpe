@@ -92,7 +92,13 @@ bool parseArguments(int argc, char *argv[])
         {
             RulesFile = argv[++i];        
         }
-         else if (arg == "-test" && i + 4 < argc)
+        else if (arg == "-batchTest" && i + 1 < argc)
+        {
+            BatchTest(argv[++i]);
+            cout << "---------------------------------------------------------------------------------------\n" << endl;
+            exit(0);       
+        }
+        else if (arg == "-test" && i + 4 < argc)
         {
             StartTest(argv[i+1], argv[i+2], argv[i+3], argv[i+4]);
             cout << "---------------------------------------------------------------------------------------\n" << endl;
@@ -122,6 +128,7 @@ bool parseArguments(int argc, char *argv[])
 
             cout << endl << "-vecTrain : Train vectors from file or vocabulary. Training data location: ./training_data/" << endl;
             cout << endl << "-test <w1> <w2> <w3> <w4> : Run a semantic test on the vectors.bin file. Returns cosine similarity from -1 to 1"  << endl;
+            cout << endl << "-batchTest <filepath> : For batch processing same as -test, however while using a input file with the analogies"  << endl;
             cout << "  Test format: word1 - word2 + word3 ~= word4" << endl;
             cout << endl << "-help : Show this help message" << endl;
             cout << endl;
@@ -148,6 +155,7 @@ bool parseArguments(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
+
     if (!parseArguments(argc, argv))
     {
         cout << "No rules provided. Use -vtrain or -vfile to provide rules." << endl;

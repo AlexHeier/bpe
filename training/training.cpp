@@ -178,16 +178,6 @@ void AverageThreadResults(
             }
         }
 
-        float norm = 0.f;
-        for (float v : vectorMap[id])
-            norm += v * v;
-        norm = sqrt(norm);
-        if (norm > 0.f)
-        {
-            for (float &v : vectorMap[id])
-                v /= norm;
-        }
-
         vectorMutex.unlock();
     }
 }
